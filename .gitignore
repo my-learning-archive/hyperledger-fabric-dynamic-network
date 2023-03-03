@@ -1,18 +1,9 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+expand/
+config/*
+crypto-config/peerOrganizations/*
 
-# Other files and folders
-.settings/
-
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
-
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+!crypto-config/peerOrganizations/org[1-2].example.com
+!config/allarewelcome.tx
+!config/genesis.block
+!config/Org1MSPanchors.tx
+!config/Org2MSPanchors.tx
