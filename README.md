@@ -5,7 +5,15 @@ This was a small project to learn how to add Orgs and Peers to a local Hyperledg
 **Requirements:**
 - Docker 
 - Docker Compose
-- fabric-samplees (in the `~/Desktop`)
+- fabric-samples (in the `~/Desktop`)
+
+---
+**Before start:**
+
+Install the fabric-samples in the `~/Desktop` folder:
+
+> `cd ~/Desktop` \
+> `curl -sSL https://bit.ly/2ysbOFE | bash -s -- 2.2.1 1.4.9`
 
 ---
 **Quick test:**

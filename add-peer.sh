@@ -85,7 +85,24 @@ CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
 
 
 ##############################################################
-printf "${C_BLUE}\n>>> CREATING INITIAL docker-compose.yaml FOR ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE}\n>>> VERIFYING AUTHORIZATION OF ${ADMIN_USERNAME}\n${C_RESET}"
+
+echo -e "${C_BLUE}\n---> Enrolling the ca-admin${C_RESET}"
+fabric-ca-client enroll \
+  -u ${CA_ADMIN_URL} \
+  --caname ca.example.com \
+  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
+
+[[ ! $? -eq 0 ]] && {
+  >&2 echo "YOU ARE NOT AUTHORIZED TO ADD A PEER TO ${ORG_NAME}!"
+  exit 1
+}
+
+
+
+
+##############################################################
+printf "${C_BLUE}\n>>> CREATING INITIAL docker-compose.yaml FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
 
 cat << EOF > ${DOCKER_COMPOSE_TARGET}
 version: '2.2'
@@ -150,12 +167,6 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 
 ##############################################################
 printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
-
-echo -e "${C_BLUE}\n---> Enrolling the ca-admin${C_RESET}"
-fabric-ca-client enroll \
-  -u ${CA_ADMIN_URL} \
-  --caname ca.example.com \
-  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
 
 echo -e "${C_BLUE}\n---> Registering peer${C_RESET}"
 fabric-ca-client register \
