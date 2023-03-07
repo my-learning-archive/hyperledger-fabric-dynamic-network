@@ -125,7 +125,7 @@ services:
       - CORE_PEER_TLS_CLIENTKEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
       - CORE_PEER_ADDRESS=peer0.${ORG_NAME}.example.com:7051
-      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${COMPOSE_PROJECT_NAME}_basic
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=\${COMPOSE_PROJECT_NAME}_basic
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb${ORG_NAME^}Peer0:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=peer0.${ORG_NAME^}
@@ -576,8 +576,8 @@ peer channel update -f ${ORG_NAME}SubmitReady.pb -c ${CHANNEL_NAME} -o ${ORDERER
 EOF
 
 docker cp ./${CLI_SCRIPT} cli:/tmp/
-docker exec cli chmod +x /tmp/${CLI_SCRIPT}
-docker exec cli /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 
@@ -608,8 +608,8 @@ peer channel join -b ${CHANNEL_NAME}.block
 EOF
 
 docker cp ./${CLI_SCRIPT} cli:/tmp/
-docker exec cli chmod +x /tmp/${CLI_SCRIPT}
-docker exec cli /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 
@@ -617,4 +617,4 @@ docker exec cli /tmp/${CLI_SCRIPT}
 ##############################################################
 printf "${C_BLUE}\n>>> CLEANING UP ${ORG_TEMP_TARGET}\n${C_RESET}"
 
-rm -r ${ORG_TEMP_TARGET}
+echo y | rm -r ${ORG_TEMP_TARGET}

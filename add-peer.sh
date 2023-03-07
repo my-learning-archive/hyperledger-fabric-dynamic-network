@@ -27,7 +27,7 @@ ADMIN_PASSWORD=$8 && echo ">>> CA ADMIN PASSWORD: "${ADMIN_PASSWORD}
 printf "${C_BLUE}\n>>> VERIFYING IF ${ORG_NAME} EXISTS, AND IF ${PEER_NAME}.${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
 
 docker ps | grep -i ${ORG_NAME} &> /dev/null || {
-  >&2 echo "${ORG_NAME} DOS NOT EXIST!"
+  >&2 echo "${ORG_NAME} DOES NOT EXIST!"
   exit 1
 }
 
@@ -128,7 +128,7 @@ services:
       - CORE_PEER_TLS_CLIENTKEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
       - CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_NAME}.example.com:7051
-      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${COMPOSE_PROJECT_NAME}_basic
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=\${COMPOSE_PROJECT_NAME}_basic
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb${ORG_NAME^}${PEER_NAME^}:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=${PEER_NAME}.${ORG_NAME^}
@@ -238,8 +238,8 @@ peer channel join -b ${CHANNEL_NAME}.block
 EOF
 
 docker cp ./${CLI_SCRIPT} cli:/tmp/
-docker exec cli chmod +x /tmp/${CLI_SCRIPT}
-docker exec cli /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 
@@ -247,4 +247,4 @@ docker exec cli /tmp/${CLI_SCRIPT}
 ##############################################################
 printf "${C_BLUE}\n>>> CLEANING UP ${ORG_TEMP_TARGET}\n${C_RESET}"
 
-rm -r ${ORG_TEMP_TARGET}
+echo y | rm -r ${ORG_TEMP_TARGET}

@@ -32,6 +32,11 @@ Add new Peer:
 > **`./add-peer.sh <peer_name> <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <channel_name> <ca_admin_username> <ca_admin_password>`** \
 > `./add-peer.sh peer1 org3 16051 16053 16984 allarewelcome Org3Admin Org3AdminPassword`
 
+Deploy and test chaincode:
+
+> **`./deploy-chaincode.sh <chaincode_path_in_cli> <chaincode_language> <chaincode_name> <chaincode_version/sequence_number> <channel_name> <list_of_peers...>`** \
+> `./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang saccc 1 allarewelcome peer0.org1.example.com peer0.org2.example.com peer1.org3.example.com`
+
 
 ---
 **Comments and TODO:**
