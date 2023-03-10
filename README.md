@@ -41,4 +41,4 @@ Deploy and test chaincode:
 ---
 **Comments and TODO:**
 
-- `org1.example.com` and `org2.example.com` belong to the base HLF network in this project, and their credentials are generated with cryptogen. Since the `add-org.sh` and `add-peer.sh` are implemented to use the CAs of the Orgs being manipulated, to generate the required cryptographic certificates, adding a peer to `org1.example.com` or `org2.example.com` is still not possible. 
+- `org1.example.com` and `org2.example.com` and the orderers belong to the base HLF network in this project, and their credentials are generated with cryptogen. Implement CA-enabled generation of crypto materials instead.
