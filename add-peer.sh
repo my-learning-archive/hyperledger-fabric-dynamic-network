@@ -89,12 +89,12 @@ printf "${C_BLUE}\n>>> VERIFYING AUTHORIZATION OF ${ADMIN_USERNAME}\n${C_RESET}"
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
-cd ${ORG_TEMP_TARGET}
-
 [[ ! $? -eq 0 ]] && {
   >&2 echo "YOU ARE NOT AUTHORIZED TO ADD A PEER TO ${ORG_NAME}!"
   exit 1
 }
+cd ${ORG_TEMP_TARGET}
+
 
 
 

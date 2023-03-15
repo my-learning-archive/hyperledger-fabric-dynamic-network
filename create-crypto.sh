@@ -47,12 +47,14 @@ mkdir -p $orgFolder/
 
 export FABRIC_CA_CLIENT_HOME=$orgFolder/
 
-set -x
 fabric-ca-client enroll \
   -u https://$adminUsername:$adminPassword@localhost:$caPort \
   --caname $caName \
   --tls.certfiles $caTlsCert
-{ set +x; } 2>/dev/null
+[[ ! $? -eq 0 ]] && {
+  >&2 echo "YOU ARE NOT AUTHORIZED TO OPERATE ${ORG_NAME}!"
+  exit 1
+}
 
 
 
@@ -101,7 +103,7 @@ function createUser(){
   userPassword=$4
   
   if [[ $userType == "client" ]]; then
-    str1="Registering user"
+    str1="Registering ${userName}"
     str2="Generating the ${userName} msp"
     str3="Generating the ${userName} tls"
   else
