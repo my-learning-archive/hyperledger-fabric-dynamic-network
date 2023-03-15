@@ -4,8 +4,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+# Adapted by duartegithub
 
 set -ev
 
 # Shut down the Docker containers that might be currently running.
-docker-compose -f docker-compose.yml stop
+docker compose -f docker-compose.yml stop
+
+for file in $(ls expand/ | grep docker-compose); do
+  docker compose -f $file stop
+done

@@ -87,11 +87,9 @@ CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
 ##############################################################
 printf "${C_BLUE}\n>>> VERIFYING AUTHORIZATION OF ${ADMIN_USERNAME}\n${C_RESET}"
 
-echo -e "${C_BLUE}\n---> Enrolling the ca-admin${C_RESET}"
-fabric-ca-client enroll \
-  -u ${CA_ADMIN_URL} \
-  --caname ca.example.com \
-  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
+cd ${FABRIC_TARGET}
+. create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
+cd ${ORG_TEMP_TARGET}
 
 [[ ! $? -eq 0 ]] && {
   >&2 echo "YOU ARE NOT AUTHORIZED TO ADD A PEER TO ${ORG_NAME}!"
@@ -168,38 +166,7 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 ##############################################################
 printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
 
-echo -e "${C_BLUE}\n---> Registering peer${C_RESET}"
-fabric-ca-client register \
-  --caname ca.example.com \
-  --id.name ${PEER_NAME} \
-  --id.secret ${PEER_NAME}pw \
-  --id.type peer \
-  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
-
-echo -e "${C_BLUE}\n---> Generating peer msp${C_RESET}"
-fabric-ca-client enroll \
-  -u ${CA_PEER_URL} \
-  --caname ca.example.com \
-  -M ${PEER_CRYPTO_MATERIAL_TARGET}/msp \
-  --csr.hosts ${PEER_NAME}.${ORG_NAME}.example.com \
-  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
-
-cp ${ORG_CRYPTO_MATERIAL_TARGET}/msp/config.yaml ${PEER_CRYPTO_MATERIAL_TARGET}/msp/config.yaml
-
-echo -e "${C_BLUE}\n---> Generating peer tls${C_RESET}"
-fabric-ca-client enroll \
-  -u ${CA_PEER_URL} \
-  --caname ca.example.com \
-  -M ${PEER_CRYPTO_MATERIAL_TARGET}/tls \
-  --enrollment.profile tls \
-  --csr.hosts ${PEER_NAME}.${ORG_NAME}.example.com \
-  --csr.hosts localhost \
-  --tls.certfiles ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem
-
-cp ${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_NAME}.example.com-cert.pem ${PEER_CRYPTO_MATERIAL_TARGET}/msp/cacerts/ca.${ORG_NAME}.example.com-cert.pem
-cp ${PEER_CRYPTO_MATERIAL_TARGET}/tls/tlscacerts/* ${PEER_CRYPTO_MATERIAL_TARGET}/tls/ca.crt
-cp ${PEER_CRYPTO_MATERIAL_TARGET}/tls/signcerts/* ${PEER_CRYPTO_MATERIAL_TARGET}/tls/server.crt
-cp ${PEER_CRYPTO_MATERIAL_TARGET}/tls/keystore/* ${PEER_CRYPTO_MATERIAL_TARGET}/tls/server.key
+createPeer ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
 
 
 

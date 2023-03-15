@@ -4,6 +4,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+# Adapted by duartegithub
 
 # Set env vars
 export PATH=~/Desktop/fabric-samples/bin:$PATH
@@ -15,7 +16,38 @@ mkdir -p config
 rm -fr config/*
 rm -fr crypto-config/*
 
-# Generate crypto material
+# Generate crypto material - orgs
+for ORG in "org1" "org2"; do
+
+  ORG_NAME=${ORG}
+  printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n${C_RESET}"
+
+  ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_CFG_PATH}/crypto-config/peerOrganizations/${ORG_NAME}.example.com
+  NODEOUS_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/msp/config.yaml
+
+  echo y | rm -r ${FABRIC_CA_CLIENT_DIR}
+
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/ca/
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/msp/tlscacerts/
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/msp/cacerts/
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca/
+
+  CA_7054_PORT=$(yq '.services."ca.'${ORG_NAME}'.example.com".ports' ${FABRIC_CFG_PATH}/docker-compose.yml | cut -c 4- | sed 's/[:].*//')
+
+  ADMIN_USERNAME=admin
+  ADMIN_PASSWORD=adminpw
+
+  docker compose -f ${FABRIC_CFG_PATH}/docker-compose.yml up -d ca.${ORG_NAME}.example.com
+
+  sleep 10
+
+  . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
+  createOrg
+  createPeer peer1 peer1 peer1pw
+
+done
+
+# Generate crypto material (orderer)
 cryptogen generate --config=./crypto-config.yaml
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate crypto material..."

@@ -4,13 +4,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+# Adapted by duartegithub
 
 set -ev
 
 # Set env vars
 export CHANNEL_NAME=allarewelcome
 
-docker compose -f docker-compose.yml down
+# docker compose -f docker-compose.yml down
 
 docker compose -f docker-compose.yml up -d orderer.example.com orderer2.example.com orderer3.example.com \
     couchdbOrg1Peer0 peer0.org1.example.com couchdbOrg1Peer1 peer1.org1.example.com ca.org1.example.com \
