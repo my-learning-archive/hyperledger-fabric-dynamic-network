@@ -1,7 +1,6 @@
 #!/bin/bash
 
-C_RESET='\033[0m'
-C_BLUE='\033[0;34m'
+set -o allexport && source .env && set +o allexport
 
 
 

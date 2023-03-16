@@ -6,7 +6,9 @@
 #
 # Adapted by duartegithub
 
-set -ev
+set -o allexport && source .env && set +o allexport
+
+printf "${C_BLUE}\n>>> STOPPING NETWORK\n${C_RESET}"
 
 # Shut down the Docker containers that might be currently running.
 docker compose -f docker-compose.yml stop

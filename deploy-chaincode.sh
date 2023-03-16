@@ -1,7 +1,6 @@
 #!/bin/bash
 
-C_RESET='\033[0m'
-C_BLUE='\033[0;34m'
+set -o allexport && source .env && set +o allexport
 
 
 ##############################################################
@@ -56,11 +55,13 @@ printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES\n${C_RESET}"
 
 export PATH=~/Desktop/fabric-samples/bin:$PATH
 
-CLI_CHAINCODE_DIR=$1 && echo ">>> CHAINCODE PATH IN CLI CONTAINER: "${CLI_CHAINCODE_DIR}
-CHAINCODE_LANGUAGE=$2 && echo ">>> CHAINCODE LANGUAGE: "${CHAINCODE_LANGUAGE}
-CHAINCODE_LABEL=$3 && echo ">>> CHAINCODE LABEL: "${CHAINCODE_LABEL}
-CHAINCODE_VERSION=$4 && echo ">>> CHAINCODE VERSION: "${CHAINCODE_VERSION}
-CHANNEL_NAME=$5 && echo ">>> CHANNEL NAME: "${CHANNEL_NAME}
+set -x
+CLI_CHAINCODE_DIR=$1
+CHAINCODE_LANGUAGE=$2 
+CHAINCODE_LABEL=$3 
+CHAINCODE_VERSION=$4 
+CHANNEL_NAME=$5 
+{ set +x; } 2>/dev/null
 
 PEERS_LIST=$({
   while (( "$#" )); do

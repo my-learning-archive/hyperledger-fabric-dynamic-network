@@ -1,7 +1,6 @@
 #!/bin/bash
 
-C_RESET='\033[0m'
-C_BLUE='\033[0;34m'
+set -o allexport && source .env && set +o allexport
 
 
 
@@ -11,14 +10,16 @@ printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES\n${C_RESET}"
 
 export PATH=~/Desktop/fabric-samples/bin:$PATH
 
-PEER_NAME=$1 && echo ">>> PEER NAME: "${PEER_NAME}
-ORG_NAME=$2 && echo ">>> ORG NAME: "${ORG_NAME}
-PEER_7051_PORT=$3 && echo ">>> 7051 PEER PORT MAP: "${PEER_7051_PORT}
-PEER_7053_PORT=$4 && echo ">>> 7053 PEER PORT MAP: "${PEER_7053_PORT}
-COUCHDB_5984_PORT=$5 && echo ">>> 5984 COUCHDB PORT MAP: "${COUCHDB_5984_PORT}
-CHANNEL_NAME=$6 && echo ">>> CHANNEL NAME: "${CHANNEL_NAME}
-ADMIN_USERNAME=$7 && echo ">>> CA ADMIN USERNAME: "${ADMIN_USERNAME}
-ADMIN_PASSWORD=$8 && echo ">>> CA ADMIN PASSWORD: "${ADMIN_PASSWORD}
+set -x
+PEER_NAME=$1
+ORG_NAME=$2
+PEER_7051_PORT=$3
+PEER_7053_PORT=$4
+COUCHDB_5984_PORT=$5
+CHANNEL_NAME=$6
+ADMIN_USERNAME=$7
+ADMIN_PASSWORD=$8
+{ set +x; } 2>/dev/null
 
 
 

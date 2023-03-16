@@ -6,6 +6,8 @@
 #
 # Adapted by duartegithub
 
+set -o allexport && source .env && set +o allexport
+
 # Set env vars
 export PATH=~/Desktop/fabric-samples/bin:$PATH
 export FABRIC_CFG_PATH=${PWD}
@@ -21,6 +23,8 @@ for ORG in "org1" "org2"; do
 
   ORG_NAME=${ORG}
   printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n${C_RESET}"
+
+  FABRIC_CA_CLIENT_DIR=/home/student/.fabric-ca-client
 
   ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_CFG_PATH}/crypto-config/peerOrganizations/${ORG_NAME}.example.com
   NODEOUS_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/msp/config.yaml
@@ -48,6 +52,7 @@ for ORG in "org1" "org2"; do
 done
 
 # Generate crypto material (orderer)
+printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR THE ORDERER ORG\n${C_RESET}"
 cryptogen generate --config=./crypto-config.yaml
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate crypto material..."
@@ -55,6 +60,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # Generate genesis block for orderer
+printf "${C_BLUE}\n>>> GENERATING GENESIS BLOCK\n${C_RESET}"
 configtxgen -profile TwoOrgOrdererGenesis -channelID system-channel -outputBlock ./config/genesis.block
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate orderer genesis block..."
@@ -62,6 +68,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # Generate channel creation transaction
+printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION\n${C_RESET}"
 configtxgen -profile TwoOrgChannel -outputCreateChannelTx ./config/$CHANNEL_NAME.tx -channelID $CHANNEL_NAME
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate channel creation transaction..."
@@ -69,6 +76,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # Generate anchor peer transaction for org1
+printf "${C_BLUE}\n>>> GENERATING ANCHOR PEER FOR org1\n${C_RESET}"
 configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ./config/Org1MSPanchors.tx -channelID $CHANNEL_NAME -asOrg Org1MSP
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate anchor peer update for Org1MSP..."
@@ -76,6 +84,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # Generate anchor peer transaction for org2
+printf "${C_BLUE}\n>>> GENERATING ANCHOR PEER FOR org2\n${C_RESET}"
 configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ./config/Org2MSPanchors.tx -channelID $CHANNEL_NAME -asOrg Org2MSP
 if [ "$?" -ne 0 ]; then
   echo "Failed to generate anchor peer update for Org2MSP..."

@@ -6,7 +6,9 @@
 #
 # Adapted by duartegithub
 
-set -e
+set -o allexport && source .env && set +o allexport
+
+printf "${C_BLUE}\n>>> TEARING DOWN\n${C_RESET}"
 
 # Shut down the Docker containers
 docker compose -f docker-compose.yml kill && docker compose -f docker-compose.yml down --volumes --remove-orphans

@@ -1,7 +1,6 @@
 #!/bin/bash
 
-C_RESET='\033[0m'
-C_BLUE='\033[0;34m'
+set -o allexport && source .env && set +o allexport
 
 
 
@@ -11,14 +10,16 @@ printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES\n${C_RESET}"
 
 export PATH=~/Desktop/fabric-samples/bin:$PATH
 
-ORG_NAME=$1 && echo ">>> ORG NAME: "${ORG_NAME}
-PEER_7051_PORT=$2 && echo ">>> 7051 PEER PORT MAP: "${PEER_7051_PORT}
-PEER_7053_PORT=$3 && echo ">>> 7053 PEER PORT MAP: "${PEER_7053_PORT}
-COUCHDB_5984_PORT=$4 && echo ">>> 5984 COUCHDB PORT MAP: "${COUCHDB_5984_PORT}
-CA_7054_PORT=$5 && echo ">>> 7054 CA PORT MAP: "${CA_7054_PORT}
-CHANNEL_NAME=$6 && echo ">>> CHANNEL NAME: "${CHANNEL_NAME}
-ADMIN_USERNAME=$7 && echo ">>> CA ADMIN USERNAME: "${ADMIN_USERNAME}
-ADMIN_PASSWORD=$8 && echo ">>> CA ADMIN PASSWORD: "${ADMIN_PASSWORD}
+set -x
+ORG_NAME=$1 
+PEER_7051_PORT=$2 
+PEER_7053_PORT=$3 
+COUCHDB_5984_PORT=$4 
+CA_7054_PORT=$5 
+CHANNEL_NAME=$6 
+ADMIN_USERNAME=$7 
+ADMIN_PASSWORD=$8 
+{ set +x; } 2>/dev/null
 
 
 
@@ -445,7 +446,6 @@ CRYPTO_ROOT=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrgani
 for org in \$(ls \${CRYPTO_ROOT}); do 
   org_name=\${org%%.*}
   [[ \${org_name} != ${ORG_NAME} ]] && {
-    echo \${org_name}
     export CORE_PEER_LOCALMSPID=\${org_name^}MSP
     export CORE_PEER_ADDRESS=peer0.\${org_name}.example.com:7051
     export CORE_PEER_TLS_CERT_FILE=\${CRYPTO_ROOT}/\${org_name}.example.com/peers/peer0.\${org_name}.example.com/tls/server.crt
@@ -455,7 +455,6 @@ for org in \$(ls \${CRYPTO_ROOT}); do
     peer channel signconfigtx -f ${ORG_NAME}SubmitReady.pb
   } 
 done
-
 peer channel update -f ${ORG_NAME}SubmitReady.pb -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
 EOF
 
