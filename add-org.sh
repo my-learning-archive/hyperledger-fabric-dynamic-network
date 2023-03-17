@@ -483,7 +483,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/p
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_NAME}.example.com/tls/server.key
 export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_NAME}.example.com/msp
 
-peer channel fetch 0 ${CHANNEL_NAME}.pb -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+peer channel fetch oldest ${CHANNEL_NAME}.block -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
 
 sleep 10
 

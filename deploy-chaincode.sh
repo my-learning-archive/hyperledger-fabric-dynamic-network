@@ -63,7 +63,7 @@ CHAINCODE_VERSION=$4
 CHANNEL_NAME=$5 
 { set +x; } 2>/dev/null
 
-PEERS_LIST=$({
+ORGS_LIST=$({
   while (( "$#" )); do
     echo $6
     shift
@@ -95,6 +95,17 @@ ORDERER_CONTAINER_HOSTNAME_PORT=orderer.example.com:7050
 
 ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
+PEERS_LIST=""
+for ORG in ${ORGS_LIST}; do
+  docker ps | grep -i ${ORG} &> /dev/null || {
+    >&2 echo "${ORG} DOES NOT EXISTS!"
+    exit 1
+  }
+  PEERS_LIST="${PEERS_LIST} "$(docker ps --format {{.Names}} | grep ^peer | grep $ORG | sort)
+done
+
+REPRESENTATIVE_PEERS_LIST=$(echo ${PEERS_LIST} | tr ' ' '\n' | grep ^peer0)
+
 PEER_PARAMETERS=""
 for PEER in ${PEERS_LIST}; do
   ASSUME_ROLE ${PEER} 1
@@ -105,14 +116,7 @@ done
 
 
 ##############################################################
-printf "${C_BLUE}\n>>> VERIFYING IF THE PEERS EXIST AND IF CHAINCODE EXISTS\n${C_RESET}"
-
-for PEER in ${PEERS_LIST_ARRAY}; do
-  docker container inspect ${PEER} &> /dev/null || {
-    >&2 echo "${PEER} DOES NOT EXIST!"
-    exit 1
-  }
-done
+printf "${C_BLUE}\n>>> VERIFYING IF CHAINCODE EXISTS\n${C_RESET}"
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
   >&2 echo "${CLI_CHAINCODE_DIR} DOES NOT EXIST INSIDE THE ${CLI_CONTAINER} CONTAINER!"
@@ -125,7 +129,7 @@ docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
 ##############################################################
 printf "${C_BLUE}\n>>> PACKAGING CHAINCODE\n${C_RESET}"
 
-ASSUME_ROLE $(echo ${PEERS_LIST} | awk '{print $1}')
+ASSUME_ROLE $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
 [[ ${CHAINCODE_LANGUAGE} == "node" ]] && BUILD_COMMAND="npm install"
 [[ ${CHAINCODE_LANGUAGE} == "golang" ]] && BUILD_COMMAND="GO111MODULE=on go mod vendor"
@@ -159,7 +163,7 @@ done
 ##############################################################
 printf "${C_BLUE}\n>>> APPROVING CHAINCODE\n${C_RESET}"
 
-for PEER in ${PEERS_LIST}; do
+for PEER in ${REPRESENTATIVE_PEERS_LIST}; do
 
   ASSUME_ROLE ${PEER}
 
@@ -186,7 +190,7 @@ done
 ##############################################################
 printf "${C_BLUE}\n>>> COMMITTING CHAINCODE\n${C_RESET}"
 
-ASSUME_ROLE $(echo ${PEERS_LIST} | awk '{print $1}')
+ASSUME_ROLE $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer lifecycle chaincode commit \
@@ -205,9 +209,12 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 ##############################################################
 printf "${C_BLUE}\n>>> TESTING CHAINCODE\n${C_RESET}"
 
-ASSUME_ROLE $(echo ${PEERS_LIST} | awk '{print $1}')
+sleep 120
+
+ASSUME_ROLE $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
 echo -e "${C_BLUE}\n---> Invoking chaincode: writing key1:value1${C_RESET}"
+set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode invoke \
     -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
@@ -216,8 +223,10 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     --name ${CHAINCODE_LABEL} \
     ${PEER_PARAMETERS} \
     -c '{"function":"set","args":["key1", "value1"]}' --waitForEvent
+{ set +x; } 2>/dev/null
 
 echo -e "${C_BLUE}\n---> Querying chaincode: reading value of key1${C_RESET}"
+set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode query \
     --channelID ${CHANNEL_NAME} \
@@ -225,6 +234,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     --peerAddresses ${_CORE_PEER_ADDRESS} \
     --tlsRootCertFiles ${_CORE_PEER_TLS_ROOTCERT_FILE} \
     -c '{"function":"get","args":["key1"]}'
+{ set +x; } 2>/dev/null
 
 
 

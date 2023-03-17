@@ -61,6 +61,7 @@ echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET}
 echo y | rm -r ${FABRIC_CA_CLIENT_DIR}
 
 mkdir -p ${ORG_TEMP_TARGET}
+mkdir -p ${FABRIC_EXPAND_TARGET}
 
 cp ${FABRIC_TARGET}/.env ${ORG_TEMP_TARGET}
 cd ${ORG_TEMP_TARGET}

@@ -34,8 +34,8 @@ Add new Peer:
 
 Deploy and test chaincode:
 
-> **`./deploy-chaincode.sh <chaincode_path_in_cli> <chaincode_language> <chaincode_name> <chaincode_version/sequence_number> <channel_name> <list_of_peers...>`** \
-> `./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang saccc 1 allarewelcome peer0.org1.example.com peer0.org2.example.com peer1.org3.example.com`
+> **`./deploy-chaincode.sh <chaincode_path_in_cli> <chaincode_language> <chaincode_name> <chaincode_version/sequence_number> <channel_name> <list_of_orgs...>`** \
+> `./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang sacc 1 allarewelcome org1 org2 org3`
 
 
 ---
