@@ -47,17 +47,36 @@ for ORG in "org1" "org2"; do
 
   . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
   createOrg
-  createPeer peer1 peer1 peer1pw
+  createEntity peer1 peer1 peer1pw
 
 done
 
 # Generate crypto material (orderer)
 printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR THE ORDERER ORG\n${C_RESET}"
-cryptogen generate --config=./crypto-config.yaml
-if [ "$?" -ne 0 ]; then
-  echo "Failed to generate crypto material..."
-  exit 1
-fi
+
+FABRIC_CA_CLIENT_DIR=/home/student/.fabric-ca-client
+
+ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_CFG_PATH}/crypto-config/ordererOrganizations/example.com
+NODEOUS_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/msp/config.yaml
+
+echo y | rm -r ${FABRIC_CA_CLIENT_DIR}
+
+mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/ca/
+mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/msp/tlscacerts/
+mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/msp/cacerts/
+mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca/
+
+CA_7054_PORT=$(yq '.services."ca.example.com".ports' ${FABRIC_CFG_PATH}/docker-compose.yml | cut -c 4- | sed 's/[:].*//')
+
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=adminpw
+
+docker compose -f ${FABRIC_CFG_PATH}/docker-compose.yml up -d ca.example.com
+
+sleep 10
+
+. create-crypto.sh orderer ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
+createOrg
 
 # Generate genesis block for orderer
 printf "${C_BLUE}\n>>> GENERATING GENESIS BLOCK\n${C_RESET}"

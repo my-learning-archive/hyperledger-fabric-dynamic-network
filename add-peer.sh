@@ -168,7 +168,7 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 ##############################################################
 printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
 
-createPeer ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
+createEntity ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
 
 
 

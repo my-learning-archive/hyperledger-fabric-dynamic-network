@@ -23,16 +23,27 @@ adminPassword=$4
 
 workDir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-orgURL="$orgName.example.com"
-caName="ca.example.com"
+[[ $orgName =~ ^org[1-99] ]] && {
+  orgURL="$orgName.example.com"
+  caName="ca.example.com"
+  entityType="peer"
+  orgFolder="$workDir/crypto-config/peerOrganizations/$orgURL"
+  caTlsCert="$orgFolder/ca/ca.$orgName.example.com-cert.pem"
+  orgMSP=$orgFolder/msp
+  entitiesFolder=$orgFolder/peers
+  usersFolder=$orgFolder/users
+}
 
-orgFolder="$workDir/crypto-config/peerOrganizations/$orgURL"
-caTlsCert="$orgFolder/ca/ca.$orgName.example.com-cert.pem"
-
-orgMSP=$orgFolder/msp
-
-peersFolder=$orgFolder/peers
-usersFolder=$orgFolder/users
+[[ $orgName == orderer ]] && {
+  orgURL="example.com"
+  caName="ca.example.com"
+  entityType="orderer"
+  orgFolder="$workDir/crypto-config/ordererOrganizations/$orgURL"
+  caTlsCert="$orgFolder/ca/ca.example.com-cert.pem"
+  orgMSP=$orgFolder/msp
+  entitiesFolder=$orgFolder/orderers
+  usersFolder=$orgFolder/users
+}
 
 
 
@@ -81,10 +92,20 @@ function createOrg(){
 
   echo "$OUFile" >$orgMSP/config.yaml
 
-  createUser "client" "User1" "user1" "user1pw"
-  createUser "admin" "Admin" "${orgName}admin" "${orgName}adminpw"
-  createPeer "peer0" "peer0" "peer0pw"
-  #createCCP $peerPort
+  [[ $orgName =~ ^org[1-99] ]] && {
+    createUser "client" "User1" "user1" "user1pw"
+    createUser "admin" "Admin" "${orgName}admin" "${orgName}adminpw"
+    createEntity "peer0" "peer0" "peer0pw"
+    return
+  }
+
+  [[ $orgName == orderer ]] && {
+    createUser "admin" "Admin" "${orgName}admin" "${orgName}adminpw"
+    createEntity "orderer" "orderer" "ordererpw"
+    createEntity "orderer2" "orderer2" "orderer2pw"
+    createEntity "orderer3" "orderer3" "orderer3pw"
+    return
+  }
 }
 
 
@@ -147,58 +168,58 @@ function createUser(){
 
 
 ################################ 
-# FUNCTION: Creating Peer Crypto
+# FUNCTION: Creating Entity Crypto
 ################################
 
-function createPeer(){
+function createEntity(){
 
-  peerName=$1
-  peerUsername=$2
-  peerPassword=$3
+  entityName=$1 # peer or orderer
+  entityUsername=$2
+  entityPassword=$3
     
-  echo -e "${C_BLUE}\nRegistering ${peerName}${C_RESET}"
+  echo -e "${C_BLUE}\nRegistering ${entityName}${C_RESET}"
   set -x
   fabric-ca-client register \
     --caname $caName \
-    --id.name $peerUsername \
-    --id.secret $peerPassword \
-    --id.type peer \
+    --id.name $entityUsername \
+    --id.secret $entityPassword \
+    --id.type $entityType \
     --tls.certfiles $caTlsCert
   { set +x; } 2>/dev/null
 
-  echo -e "${C_BLUE}\nGenerating ${peerName} msp${C_RESET}"
+  echo -e "${C_BLUE}\nGenerating ${entityName} msp${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$peerUsername:$peerPassword@localhost:$caPort \
+    -u https://$entityUsername:$entityPassword@localhost:$caPort \
     --caname $caName \
-    -M $peersFolder/$peerName.$orgURL/msp \
-    --csr.hosts $peerName.$orgURL \
+    -M $entitiesFolder/$entityName.$orgURL/msp \
+    --csr.hosts $entityName.$orgURL \
     --tls.certfiles $caTlsCert
   { set +x; } 2>/dev/null
 
-  cp $orgMSP/config.yaml $peersFolder/$peerName.$orgURL/msp/config.yaml
+  cp $orgMSP/config.yaml $entitiesFolder/$entityName.$orgURL/msp/config.yaml
 
-  echo -e "${C_BLUE}\nGenerating ${peerName} tls${C_RESET}"
+  echo -e "${C_BLUE}\nGenerating ${entityName} tls${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$peerUsername:$peerPassword@localhost:$caPort \
+    -u https://$entityUsername:$entityPassword@localhost:$caPort \
     --caname $caName \
-    -M $peersFolder/$peerName.$orgURL/tls \
+    -M $entitiesFolder/$entityName.$orgURL/tls \
     --enrollment.profile tls \
-    --csr.hosts $peerName.$orgURL \
+    --csr.hosts $entityName.$orgURL \
     --csr.hosts localhost \
     --tls.certfiles $caTlsCert
   { set +x; } 2>/dev/null
 
-  cp $peersFolder/$peerName.$orgURL/tls/tlscacerts/* $peersFolder/$peerName.$orgURL/tls/ca.crt
-  cp $peersFolder/$peerName.$orgURL/tls/signcerts/* $peersFolder/$peerName.$orgURL/tls/server.crt
-  cp $peersFolder/$peerName.$orgURL/tls/keystore/* $peersFolder/$peerName.$orgURL/tls/server.key
+  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $entitiesFolder/$entityName.$orgURL/tls/ca.crt
+  cp $entitiesFolder/$entityName.$orgURL/tls/signcerts/* $entitiesFolder/$entityName.$orgURL/tls/server.crt
+  cp $entitiesFolder/$entityName.$orgURL/tls/keystore/* $entitiesFolder/$entityName.$orgURL/tls/server.key
 
   mkdir -p $orgMSP/tlscacerts
-  cp $peersFolder/$peerName.$orgURL/tls/tlscacerts/* $orgMSP/tlscacerts/ca.crt
+  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $orgMSP/tlscacerts/ca.crt
 
   mkdir -p $orgFolder/tlsca
-  cp $peersFolder/$peerName.$orgURL/tls/tlscacerts/* $orgFolder/tlsca/tlsca.$orgURL-cert.pem
+  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $orgFolder/tlsca/tlsca.$orgURL-cert.pem
 }
 
 

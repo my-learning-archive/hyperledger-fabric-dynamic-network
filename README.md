@@ -37,8 +37,14 @@ Deploy and test chaincode:
 > **`./deploy-chaincode.sh <chaincode_path_in_cli> <chaincode_language> <chaincode_name> <chaincode_version/sequence_number> <channel_name> <list_of_orgs...>`** \
 > `./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang sacc 1 allarewelcome org1 org2 org3`
 
+Check the couchdb of any peer, for instance, peer1.org3:
+  1. Access it in any browser - `localhost:15984/_utils`
+  2. Use the credentials defined in the docker-compose file - `peer1.Org3:password`
+  3. Check the database referent to the deployed chaincode - `allarewelcome_sacc`
+  4. Check if the key written at the end of the deploy-chaincode.sh script is there - `key1`
+  5. Similarly, check the couchdbs of the other peers
 
 ---
 **Comments and TODO:**
 
-- orderer credentials are still generate with cryptogen. change that.
+- Standardize the code, to make it more readable.

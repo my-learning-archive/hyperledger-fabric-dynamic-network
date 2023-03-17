@@ -13,7 +13,7 @@ export CHANNEL_NAME=allarewelcome
 
 # docker compose -f docker-compose.yml down
 printf "${C_BLUE}\n>>> STARTING org1 AND org2 CONTAINERS\n${C_RESET}"
-docker compose -f docker-compose.yml up -d orderer.example.com orderer2.example.com orderer3.example.com \
+docker compose -f docker-compose.yml up -d ca.example.com orderer.example.com orderer2.example.com orderer3.example.com \
     couchdbOrg1Peer0 peer0.org1.example.com couchdbOrg1Peer1 peer1.org1.example.com ca.org1.example.com \
     couchdbOrg2Peer0 peer0.org2.example.com couchdbOrg2Peer1 peer1.org2.example.com ca.org2.example.com \
     cli
