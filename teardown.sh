@@ -1,12 +1,14 @@
 #!/bin/bash
-#
-# Copyright IBM Corp All Rights Reserved
-#
-# SPDX-License-Identifier: Apache-2.0
-#
-# Adapted by duartegithub
 
 set -o allexport && source .env && set +o allexport
+export PATH=~/Desktop/fabric-samples/bin:$PATH
+
+
+
+
+############################################################## 
+# TEARING DOWN THE NETWORK 
+##############################################################
 
 printf "${C_BLUE}\n>>> TEARING DOWN\n${C_RESET}"
 
@@ -28,10 +30,8 @@ else
     docker rmi -f $DOCKER_IMAGE_IDS
 fi
 
-# Remove expanded configuration files
+# Remove config files
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 rm -rvf ${SCRIPT}/expand/
 rm -rvf ${SCRIPT}/crypto-config/
 rm -rvf ${SCRIPT}/config/
-
-# Your system is now clean

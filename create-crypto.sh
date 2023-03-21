@@ -1,66 +1,69 @@
 #!/bin/bash
 
 set -o allexport && source .env && set +o allexport
+export PATH=~/Desktop/fabric-samples/bin:$PATH
 
 
 
 
-################################ 
-# PROCESSING ARGS 
-################################
+############################################################## 
+# INPUT VARIABLES 
+##############################################################
 
-orgName=$1
-caPort=$2
-adminUsername=$3
-adminPassword=$4
-
-
+ORG_NAME=$1
+CA_7054_PORT=$2
+ADMIN_USERNAME=$3
+ADMIN_PASSWORD=$4
 
 
-################################ 
+
+
+############################################################## 
 # PROCESSING VARIABLES 
-################################
+##############################################################
 
-workDir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 
-[[ $orgName =~ ^org[1-99] ]] && {
-  orgURL="$orgName.example.com"
-  caName="ca.example.com"
-  entityType="peer"
-  orgFolder="$workDir/crypto-config/peerOrganizations/$orgURL"
-  caTlsCert="$orgFolder/ca/ca.$orgName.example.com-cert.pem"
-  orgMSP=$orgFolder/msp
-  entitiesFolder=$orgFolder/peers
-  usersFolder=$orgFolder/users
+WORK_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+[[ ${ORG_NAME} =~ ^org[1-99] ]] && {
+  ORG_URL="${ORG_NAME}.${PROJECT_URL}"
+  CA_NAME="ca.${PROJECT_URL}"
+  ENTITY_TYPE="peer"
+  ORG_CRYPTO_MATERIAL_TARGET="${WORK_DIR}/crypto-config/peerOrganizations/${ORG_URL}"
+  CA_TLS_CERTIFICATE="${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_URL}-cert.pem"
+  ORG_MSP="${ORG_CRYPTO_MATERIAL_TARGET}/msp"
+  ENTITIES_CRYPTO_MATERIAL_TARGET="${ORG_CRYPTO_MATERIAL_TARGET}/peers"
+  USERS_CRYPTO_MATERIAL_TARGET="${ORG_CRYPTO_MATERIAL_TARGET}/users"
 }
 
-[[ $orgName == orderer ]] && {
-  orgURL="example.com"
-  caName="ca.example.com"
-  entityType="orderer"
-  orgFolder="$workDir/crypto-config/ordererOrganizations/$orgURL"
-  caTlsCert="$orgFolder/ca/ca.example.com-cert.pem"
-  orgMSP=$orgFolder/msp
-  entitiesFolder=$orgFolder/orderers
-  usersFolder=$orgFolder/users
+[[ ${ORG_NAME} == orderer ]] && {
+  ORG_URL="${PROJECT_URL}"
+  CA_NAME="ca.${PROJECT_URL}"
+  ENTITY_TYPE="orderer"
+  ORG_CRYPTO_MATERIAL_TARGET="${WORK_DIR}/crypto-config/ordererOrganizations/${ORG_URL}"
+  CA_TLS_CERTIFICATE="${ORG_CRYPTO_MATERIAL_TARGET}/ca/ca.${ORG_URL}-cert.pem"
+  ORG_MSP="${ORG_CRYPTO_MATERIAL_TARGET}/msp"
+  ENTITIES_CRYPTO_MATERIAL_TARGET="${ORG_CRYPTO_MATERIAL_TARGET}/orderers"
+  USERS_CRYPTO_MATERIAL_TARGET="${ORG_CRYPTO_MATERIAL_TARGET}/users"
 }
 
 
 
 
-################################ 
+############################################################## 
 # ENROLLING CA ADMIN 
-################################
+##############################################################
 
 echo -e "${C_BLUE}\nEnrolling CA Admin${C_RESET}"
-mkdir -p $orgFolder/
+mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/
 
-export FABRIC_CA_CLIENT_HOME=$orgFolder/
+export FABRIC_CA_CLIENT_HOME=${ORG_CRYPTO_MATERIAL_TARGET}/
 
 fabric-ca-client enroll \
-  -u https://$adminUsername:$adminPassword@localhost:$caPort \
-  --caname $caName \
-  --tls.certfiles $caTlsCert
+  -u https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT} \
+  --caname ${CA_NAME} \
+  --tls.certfiles ${CA_TLS_CERTIFICATE}
 [[ ! $? -eq 0 ]] && {
   >&2 echo "YOU ARE NOT AUTHORIZED TO OPERATE ${ORG_NAME}!"
   exit 1
@@ -69,41 +72,43 @@ fabric-ca-client enroll \
 
 
 
-################################ 
+############################################################## 
 # FUNCTION: Creating Org Crypto
-################################
+##############################################################
 
 function createOrg(){
 
-  OUFile="NodeOUs:
+  PROJECT_URL_DASHED=$(echo ${PROJECT_URL} | tr "." "-")
+
+  OU_FILE="NodeOUs:
     Enable: true
     ClientOUIdentifier:
-      Certificate: cacerts/localhost-$caPort-ca-example-com.pem
+      Certificate: cacerts/localhost-${CA_7054_PORT}-ca-${PROJECT_URL_DASHED}.pem
       OrganizationalUnitIdentifier: client
     PeerOUIdentifier:
-      Certificate: cacerts/localhost-$caPort-ca-example-com.pem
+      Certificate: cacerts/localhost-${CA_7054_PORT}-ca-${PROJECT_URL_DASHED}.pem
       OrganizationalUnitIdentifier: peer
     AdminOUIdentifier:
-      Certificate: cacerts/localhost-$caPort-ca-example-com.pem
+      Certificate: cacerts/localhost-${CA_7054_PORT}-ca-${PROJECT_URL_DASHED}.pem
       OrganizationalUnitIdentifier: admin
     OrdererOUIdentifier:
-      Certificate: cacerts/localhost-$caPort-ca-example-com.pem
+      Certificate: cacerts/localhost-${CA_7054_PORT}-ca-${PROJECT_URL_DASHED}.pem
       OrganizationalUnitIdentifier: orderer"
 
-  echo "$OUFile" >$orgMSP/config.yaml
+  echo "${OU_FILE}" >${ORG_MSP}/config.yaml
 
-  [[ $orgName =~ ^org[1-99] ]] && {
+  [[ ${ORG_NAME} =~ ^org[1-99] ]] && {
     createUser "client" "User1" "user1" "user1pw"
-    createUser "admin" "Admin" "${orgName}admin" "${orgName}adminpw"
+    createUser "admin" "Admin" "${ORG_NAME}admin" "${ORG_NAME}adminpw"
     createEntity "peer0" "peer0" "peer0pw"
     return
   }
 
-  [[ $orgName == orderer ]] && {
-    createUser "admin" "Admin" "${orgName}admin" "${orgName}adminpw"
-    createEntity "orderer" "orderer" "ordererpw"
+  [[ ${ORG_NAME} == orderer ]] && {
+    createUser "admin" "Admin" "${ORG_NAME}admin" "${ORG_NAME}adminpw"
+    createEntity "orderer0" "orderer0" "orderer0pw"
+    createEntity "orderer1" "orderer1" "orderer1pw"
     createEntity "orderer2" "orderer2" "orderer2pw"
-    createEntity "orderer3" "orderer3" "orderer3pw"
     return
   }
 }
@@ -111,21 +116,21 @@ function createOrg(){
 
 
 
-################################ 
+############################################################## 
 # FUNCTION: Creating User Crypto
-################################
+##############################################################
 
 function createUser(){
 
-  userType=$1
-  userName=$2
-  userUsername=$3
-  userPassword=$4
+  USER_TYPE=$1
+  USER_NAME=$2
+  USER_USERNAME=$3
+  USER_PASSWORD=$4
   
   if [[ $userType == "client" ]]; then
-    str1="Registering ${userName}"
-    str2="Generating the ${userName} msp"
-    str3="Generating the ${userName} tls"
+    str1="Registering ${USER_NAME}"
+    str2="Generating the ${USER_NAME} msp"
+    str3="Generating the ${USER_NAME} tls"
   else
     str1="Registering the org admin"
     str2="Generating the org admin msp"
@@ -135,99 +140,99 @@ function createUser(){
   echo -e "${C_BLUE}\n${str1}${C_RESET}"
   set -x
   fabric-ca-client register \
-    --caname $caName \
-    --id.name $userUsername \
-    --id.secret $userPassword \
-    --id.type $userType \
-    --tls.certfiles $caTlsCert
+    --caname ${CA_NAME} \
+    --id.name ${USER_USERNAME} \
+    --id.secret ${USER_PASSWORD} \
+    --id.type ${USER_TYPE} \
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
   echo -e "${C_BLUE}\n${str2}${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$userUsername:$userPassword@localhost:$caPort \
-    --caname $caName \
-    -M $usersFolder/$userName@$orgURL/msp \
-    --tls.certfiles $caTlsCert
+    -u https://${USER_USERNAME}:${USER_PASSWORD}@localhost:${CA_7054_PORT} \
+    --caname ${CA_NAME} \
+    -M ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/msp \
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
   echo -e "${C_BLUE}\n${str3}${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$userUsername:$userPassword@localhost:$caPort \
-    --caname $caName \
-    -M $usersFolder/$userName@$orgURL/tls \
+    -u https://${USER_USERNAME}:${USER_PASSWORD}@localhost:${CA_7054_PORT} \
+    --caname ${CA_NAME} \
+    -M ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls \
     --enrollment.profile tls \
-    --tls.certfiles $caTlsCert
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null  
 
-  cp $orgMSP/config.yaml $usersFolder/$userName@$orgURL/msp/config.yaml
+  cp ${ORG_MSP}/config.yaml ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/msp/config.yaml
 }
 
 
 
 
-################################ 
+############################################################## 
 # FUNCTION: Creating Entity Crypto
-################################
+##############################################################
 
 function createEntity(){
 
-  entityName=$1 # peer or orderer
-  entityUsername=$2
-  entityPassword=$3
+  ENTITY_NAME=$1 # peer or orderer
+  ENTITY_USERNAME=$2
+  ENTITY_PASSWORD=$3
     
-  echo -e "${C_BLUE}\nRegistering ${entityName}${C_RESET}"
+  echo -e "${C_BLUE}\nRegistering ${ENTITY_NAME}${C_RESET}"
   set -x
   fabric-ca-client register \
-    --caname $caName \
-    --id.name $entityUsername \
-    --id.secret $entityPassword \
-    --id.type $entityType \
-    --tls.certfiles $caTlsCert
+    --caname ${CA_NAME} \
+    --id.name ${ENTITY_USERNAME} \
+    --id.secret ${ENTITY_PASSWORD} \
+    --id.type ${ENTITY_TYPE} \
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
-  echo -e "${C_BLUE}\nGenerating ${entityName} msp${C_RESET}"
+  echo -e "${C_BLUE}\nGenerating ${ENTITY_NAME} msp${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$entityUsername:$entityPassword@localhost:$caPort \
-    --caname $caName \
-    -M $entitiesFolder/$entityName.$orgURL/msp \
-    --csr.hosts $entityName.$orgURL \
-    --tls.certfiles $caTlsCert
+    -u https://${ENTITY_USERNAME}:${ENTITY_PASSWORD}@localhost:${CA_7054_PORT} \
+    --caname ${CA_NAME} \
+    -M ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/msp \
+    --csr.hosts ${ENTITY_NAME}.${ORG_URL} \
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
-  cp $orgMSP/config.yaml $entitiesFolder/$entityName.$orgURL/msp/config.yaml
+  cp ${ORG_MSP}/config.yaml ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/msp/config.yaml
 
-  echo -e "${C_BLUE}\nGenerating ${entityName} tls${C_RESET}"
+  echo -e "${C_BLUE}\nGenerating ${ENTITY_NAME} tls${C_RESET}"
   set -x
   fabric-ca-client enroll \
-    -u https://$entityUsername:$entityPassword@localhost:$caPort \
-    --caname $caName \
-    -M $entitiesFolder/$entityName.$orgURL/tls \
+    -u https://${ENTITY_USERNAME}:${ENTITY_PASSWORD}@localhost:${CA_7054_PORT} \
+    --caname ${CA_NAME} \
+    -M ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls \
     --enrollment.profile tls \
-    --csr.hosts $entityName.$orgURL \
+    --csr.hosts ${ENTITY_NAME}.${ORG_URL} \
     --csr.hosts localhost \
-    --tls.certfiles $caTlsCert
+    --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
-  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $entitiesFolder/$entityName.$orgURL/tls/ca.crt
-  cp $entitiesFolder/$entityName.$orgURL/tls/signcerts/* $entitiesFolder/$entityName.$orgURL/tls/server.crt
-  cp $entitiesFolder/$entityName.$orgURL/tls/keystore/* $entitiesFolder/$entityName.$orgURL/tls/server.key
+  cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/tlscacerts/* ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/ca.crt
+  cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/signcerts/* ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/server.crt
+  cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/keystore/* ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/server.key
 
-  mkdir -p $orgMSP/tlscacerts
-  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $orgMSP/tlscacerts/ca.crt
+  mkdir -p ${ORG_MSP}/tlscacerts
+  cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/tlscacerts/* ${ORG_MSP}/tlscacerts/ca.crt
 
-  mkdir -p $orgFolder/tlsca
-  cp $entitiesFolder/$entityName.$orgURL/tls/tlscacerts/* $orgFolder/tlsca/tlsca.$orgURL-cert.pem
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca
+  cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/tlscacerts/* ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca/tlsca.${ORG_URL}-cert.pem
 }
 
 
 
 
-################################ 
-# OTHER FUNCTIONS
-################################
+############################################################## 
+# OTHER FUNCTIONS - START
+##############################################################
 
 function one_line_pem {
     echo "`awk 'NF {sub(/\\n/, ""); printf "%s\\\\\\\n",$0;}' $1`"
@@ -260,17 +265,20 @@ function yaml_ccp {
 
 function createCCP(){
 
-  echo -e "${C_BLUE}\nGenerating ccp for ${orgName}${C_RESET}"
-  ORG=$(echo $orgName | sed -e 's/org//g')
+  echo -e "${C_BLUE}\nGenerating ccp for ${ORG_NAME}${C_RESET}"
+  ORG=$(echo ${ORG_NAME} | sed -e 's/org//g')
 	P0PORT=$1
-	CAPORT=$caPort
-	PEERPEM=organizations/peerOrganizations/$orgName.example.com/tlsca/tlsca.$orgName.example.com-cert.pem
-	CAPEM=organizations/peerOrganizations/$orgName.example.com/ca/ca.$orgName.example.com-cert.pem
+	CAPORT=${CA_7054_PORT}
+	PEERPEM=organizations/peerOrganizations/${ORG_URL}/tlsca/tlsca.${ORG_URL}-cert.pem
+	CAPEM=organizations/peerOrganizations/${ORG_URL}/ca/ca.${ORG_URL}-cert.pem
 
-	echo "$(json_ccp $ORG $P0PORT $CAPORT $PEERPEM $CAPEM)" > organizations/peerOrganizations/$orgName.example.com/connection-$orgName.json
-	echo "$(yaml_ccp $ORG $P0PORT $CAPORT $PEERPEM $CAPEM)" > organizations/peerOrganizations/$orgName.example.com/connection-$orgName.yaml
+	echo "$(json_ccp $ORG $P0PORT ${CA_7054_PORT} $PEERPEM $CAPEM)" > organizations/peerOrganizations/${ORG_URL}/connection-${ORG_NAME}.json
+	echo "$(yaml_ccp $ORG $P0PORT ${CA_7054_PORT} $PEERPEM $CAPEM)" > organizations/peerOrganizations/${ORG_URL}/connection-${ORG_NAME}.yaml
 }
 
+############################################################## 
+# OTHER FUNCTIONS - END
+##############################################################
 
 
 

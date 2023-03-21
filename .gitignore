@@ -2,7 +2,6 @@ expand/
 config/
 crypto-config/
 
-#!crypto-config/peerOrganizations/org[1-2].example.com
 #!config/allarewelcome.tx
 #!config/genesis.block
 #!config/Org1MSPanchors.tx
