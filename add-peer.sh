@@ -30,12 +30,7 @@ ADMIN_PASSWORD=$8
 # VERIFICATIONS - ORG EXISTS? PEER ALREADY EXISTS?
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFYING IF ${ORG_NAME} EXISTS, AND IF ${PEER_NAME}.${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
-
-docker ps | grep -i ${ORG_NAME} &> /dev/null || {
-  >&2 echo "${ORG_NAME} DOES NOT EXIST!"
-  exit 1
-}
+printf "${C_BLUE}\n>>> VERIFYING IF ${PEER_NAME}.${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
 
 docker ps | grep -i ${PEER_NAME}.${ORG_NAME} &> /dev/null && {
   >&2 echo "${PEER_NAME}.${ORG_NAME} ALREADY EXISTS!"
@@ -61,15 +56,12 @@ ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/peerOrganizations/${OR
 PEER_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/peers/${PEER_NAME}.${ORG_URL}
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-FABRIC_CA_CLIENT_DIR=/home/student/.fabric-ca-client
-
 ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}
 CRYPTO_CONFIG_TARGET=${ORG_TEMP_TARGET}/crypto-config-${ORG_NAME}.yaml
 DOCKER_COMPOSE_TARGET=${ORG_TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
 
 echo y | rm -r ${ORG_TEMP_TARGET}
 echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET}
-echo y | rm -r ${FABRIC_CA_CLIENT_DIR}
 
 mkdir -p ${ORG_TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
@@ -80,16 +72,11 @@ cd ${ORG_TEMP_TARGET}
 CLI_CONTAINER=cli
 ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
 
-CA_7054_PORT=$(yq '.services."ca.'${ORG_URL}'".ports' ${FABRIC_TARGET}/docker-compose.yml | cut -c 4- | sed 's/[:].*//')
-
-if [[ ${CA_7054_PORT} == "l" ]]; then
-  CA_7054_PORT=$(yq '.services."ca.'${ORG_URL}'".ports' ${FABRIC_EXPAND_TARGET}/docker-compose-${ORG_NAME}.yaml | cut -c 4- | sed 's/[:].*//')
-fi
-
-if [[ ${CA_7054_PORT} == "l" ]]; then
-  >&2 echo "COULD NOT OBTAIN THE PORT OF THE CA OF ${ORG_NAME}"
+CA_7054_PORT=$(docker inspect ca.${ORG_URL} | grep HostPort | head -n 1 | awk '{print $2}' | tr -d '"')
+[[ ! $? -eq 0 ]] && {
+  >&2 echo "COULD NOT OBTAIN THE PORT OF THE CA OF ${ORG_NAME} - CHECK IF ORG EXISTS"
   exit 1
-fi
+}
 
 CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
 CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
@@ -105,12 +92,7 @@ printf "${C_BLUE}\n>>> VERIFYING AUTHORIZATION OF ${ADMIN_USERNAME}\n${C_RESET}"
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
-[[ ! $? -eq 0 ]] && {
-  >&2 echo "YOU ARE NOT AUTHORIZED TO ADD A PEER TO ${ORG_NAME}!"
-  exit 1
-}
 cd ${ORG_TEMP_TARGET}
-
 
 
 

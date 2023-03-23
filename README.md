@@ -47,4 +47,4 @@ Check the couchdb of any peer, for instance, peer1.org3:
 ---
 **Comments and TODO:**
 
-- Standardize the code, to make it more readable.
+- Script to create other channels.

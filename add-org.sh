@@ -10,7 +10,7 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # INPUT VARIABLES 
 ##############################################################
 
-printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES - add.org.sh\n${C_RESET}"
+printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES - add-org.sh\n${C_RESET}"
 
 set -x
 ORG_NAME=$1 
@@ -58,8 +58,6 @@ USER1_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/users/User1@${ORG_URL
 ADMIN_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/users/Admin@${ORG_URL}
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-FABRIC_CA_CLIENT_DIR=/home/student/.fabric-ca-client
-
 ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}
 CRYPTO_CONFIG_TARGET=${ORG_TEMP_TARGET}/crypto-config-${ORG_NAME}.yaml
 DOCKER_COMPOSE_TARGET=${ORG_TEMP_TARGET}/docker-compose-${ORG_NAME}.yaml
@@ -70,7 +68,6 @@ NODEOUS_TARGET=${ORG_TEMP_TARGET}/nodeous-config-${ORG_NAME}.yaml
 
 echo y | rm -r ${ORG_TEMP_TARGET}
 echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET}
-echo y | rm -r ${FABRIC_CA_CLIENT_DIR}
 
 mkdir -p ${ORG_TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
@@ -417,6 +414,8 @@ printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n${C_RESET}"
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
 createOrg
+createUser "client" "User1" "user1" "user1pw"
+createEntity "peer0" "peer0" "peer0pw"
 cd ${ORG_TEMP_TARGET}
 
 
@@ -484,6 +483,7 @@ for org in \$(ls \${CRYPTO_ROOT}); do
     peer channel signconfigtx -f ${ORG_NAME}SubmitReady.pb
   } 
 done
+
 peer channel update -f ${ORG_NAME}SubmitReady.pb -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
 EOF
 

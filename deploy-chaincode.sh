@@ -90,8 +90,6 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 
-FABRIC_CA_CLIENT_DIR=/home/student/.fabric-ca-client
-
 TEMP_TARGET=${SCRIPT}/chaincode_tmp
 
 echo y | rm -r ${TEMP_TARGET}
@@ -111,7 +109,7 @@ for ORG in ${ORGS_LIST}; do
     >&2 echo "${ORG} DOES NOT EXISTS!"
     exit 1
   }
-  PEERS_LIST="${PEERS_LIST} "$(docker ps --format {{.Names}} | grep ^peer | grep $ORG | sort)
+  PEERS_LIST="${PEERS_LIST} "$(docker ps --format {{.Names}} | grep ^peer | grep ${ORG} | sort)
 done
 
 REPRESENTATIVE_PEERS_LIST=$(echo ${PEERS_LIST} | tr ' ' '\n' | grep ^peer0)
@@ -230,14 +228,13 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 
 
 
-
 ############################################################## 
 # TESTING CHAINCODE
 ##############################################################
 
 printf "${C_BLUE}\n>>> TESTING CHAINCODE\n${C_RESET}"
 
-sleep 120
+sleep 60
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 

@@ -2,7 +2,4 @@ expand/
 config/
 crypto-config/
 
-#!config/allarewelcome.tx
 #!config/genesis.block
-#!config/Org1MSPanchors.tx
-#!config/Org2MSPanchors.tx
