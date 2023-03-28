@@ -1,5 +1,6 @@
 expand/
 config/
 crypto-config/
+*_tmp/
 
 #!config/genesis.block

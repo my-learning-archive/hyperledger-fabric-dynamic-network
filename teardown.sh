@@ -35,3 +35,4 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 rm -rvf ${SCRIPT}/expand/
 rm -rvf ${SCRIPT}/crypto-config/
 rm -rvf ${SCRIPT}/config/
+rm -rvf ${SCRIPT}/*_tmp/

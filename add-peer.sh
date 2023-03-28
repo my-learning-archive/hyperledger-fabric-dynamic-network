@@ -18,9 +18,8 @@ ORG_NAME=$2
 PEER_7051_PORT=$3
 PEER_7053_PORT=$4
 COUCHDB_5984_PORT=$5
-CHANNEL_NAME=$6
-ADMIN_USERNAME=$7
-ADMIN_PASSWORD=$8
+ADMIN_USERNAME=$6
+ADMIN_PASSWORD=$7
 { set +x; } 2>/dev/null
 
 
@@ -57,7 +56,6 @@ PEER_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/peers/${PEER_NAME}.${O
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
 ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}
-CRYPTO_CONFIG_TARGET=${ORG_TEMP_TARGET}/crypto-config-${ORG_NAME}.yaml
 DOCKER_COMPOSE_TARGET=${ORG_TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
 
 echo y | rm -r ${ORG_TEMP_TARGET}
@@ -187,15 +185,27 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}${PEER_NAME^
 
 
 ############################################################## 
-# ADDING PEER TO APPLICATION CHANNEL
+# JOINING PEER TO APPLICATION CHANNEL
 ##############################################################
 
-printf "${C_BLUE}\n>>> ADDING ${PEER_NAME}.${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE}\n>>> JOINING ${PEER_NAME}.${ORG_NAME} TO THE APPLICATION CHANNELS OF ${ORG_NAME}\n${C_RESET}"
 
 CLI_SCRIPT=add-${PEER_NAME}.${ORG_URL}-to-channel.sh
 
 cat << EOF > ./${CLI_SCRIPT}
 #!/bin/bash
+
+export CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
+export CORE_PEER_ADDRESS=peer0.${ORG_URL}:7051
+export CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.crt
+export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key
+export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
+
+org_channels_list=\$(peer channel list | sed 1d)
 
 export CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
 export CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051
@@ -207,14 +217,14 @@ export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/$
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key
 export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
 
-peer channel fetch oldest ${CHANNEL_NAME}.block -c ${CHANNEL_NAME} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
-
-sleep 10
-
-peer channel join -b ${CHANNEL_NAME}.block
+for channel_name in \${org_channels_list}; do
+  peer channel fetch oldest \${channel_name}.block -c \${channel_name} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+  sleep 10
+  peer channel join -b \${channel_name}.block
+done
 EOF
 
-docker cp ./${CLI_SCRIPT} cli:/tmp/
+docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
 docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
 docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 

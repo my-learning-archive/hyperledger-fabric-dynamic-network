@@ -202,6 +202,14 @@ for PEER in ${REPRESENTATIVE_PEERS_LIST}; do
       --package-id ${PACKAGE_ID} \
       --sequence ${CHAINCODE_VERSION}
 
+  docker exec ${ENV} ${CLI_CONTAINER} \
+    peer lifecycle chaincode checkcommitreadiness \
+      --channelID ${CHANNEL_NAME} \
+      --name ${CHAINCODE_LABEL} \
+      --version ${CHAINCODE_VERSION} \
+      --sequence ${CHAINCODE_VERSION} \
+      --output json
+
 done
 
 
@@ -213,8 +221,11 @@ done
 
 printf "${C_BLUE}\n>>> COMMITTING CHAINCODE\n${C_RESET}"
 
+sleep 60
+
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
+set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer lifecycle chaincode commit \
     -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
@@ -224,7 +235,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     --version ${CHAINCODE_VERSION} \
     --sequence ${CHAINCODE_VERSION} \
     ${PEER_PARAMETERS}
-
+{ set +x; } 2>/dev/null
 
 
 

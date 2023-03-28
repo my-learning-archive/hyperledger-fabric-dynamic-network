@@ -4,7 +4,7 @@ This was a small project to learn how to add Orgs and Peers to a local Hyperledg
 
 **Requirements:**
 - Docker 
-- Docker Compose
+- Docker Compose v2
 - fabric-samples (in the `~/Desktop`)
 
 ---
@@ -25,12 +25,12 @@ Prepare base HLF network:
 Add new Org:
 
 > **`./add-org.sh <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <ca_7054_port> <channel_name> <ca_admin_username> <ca_admin_password>`** \
-> `./add-org.sh org3 15051 15053 15984 15054 allarewelcome Org3Admin Org3AdminPassword`
+> `./add-org.sh org3 15051 15053 15984 15054 Org3Admin Org3AdminPassword allarewelcome`
 
 Add new Peer:
 
 > **`./add-peer.sh <peer_name> <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <channel_name> <ca_admin_username> <ca_admin_password>`** \
-> `./add-peer.sh peer1 org3 16051 16053 16984 allarewelcome Org3Admin Org3AdminPassword`
+> `./add-peer.sh peer1 org3 16051 16053 16984 Org3Admin Org3AdminPassword allarewelcome`
 
 Deploy and test chaincode:
 
@@ -47,4 +47,9 @@ Check the couchdb of any peer, for instance, peer1.org3:
 ---
 **Comments and TODO:**
 
-- Script to create other channels.
+- Add ability to create new channels:
+  - ~~**create-channel.sh**~~
+  - ~~**add-peer.sh:** recognize channels org is a part of, and remove need to specify application channels~~
+  - **add-peer.sh:** peer should install the chaincodes that are running in the application channels the org belongs to
+  - **deploy-chaincode.sh:** remove need to specify list of orgs: use discovery service to fetch list of orgs in channel
+  - **README.md** should be updated to reflect all changes - for now it is only compatible with tag v1.0

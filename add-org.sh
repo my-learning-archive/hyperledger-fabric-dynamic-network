@@ -18,9 +18,10 @@ PEER_7051_PORT=$2
 PEER_7053_PORT=$3 
 COUCHDB_5984_PORT=$4 
 CA_7054_PORT=$5 
-CHANNEL_NAME=$6 
-ADMIN_USERNAME=$7 
-ADMIN_PASSWORD=$8 
+ADMIN_USERNAME=$6 
+ADMIN_PASSWORD=$7
+CHANNEL_NAME=$8
+CHANNEL_ORG_NAME=$9
 { set +x; } 2>/dev/null
 
 
@@ -54,17 +55,14 @@ FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/peerOrganizations/${ORG_URL}
 PEER0_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/peers/peer0.${ORG_URL}
-USER1_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/users/User1@${ORG_URL}
-ADMIN_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/users/Admin@${ORG_URL}
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}
-CRYPTO_CONFIG_TARGET=${ORG_TEMP_TARGET}/crypto-config-${ORG_NAME}.yaml
+ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}_tmp
 DOCKER_COMPOSE_TARGET=${ORG_TEMP_TARGET}/docker-compose-${ORG_NAME}.yaml
-CONFIGTX_TARGET=${ORG_TEMP_TARGET}/configtx-${ORG_NAME}.yaml
+CONFIGTX_TARGET=${ORG_TEMP_TARGET}/configtx.yaml
 CA_SERVER_TARGET=${ORG_TEMP_TARGET}/fabric-ca-server-config-${ORG_NAME}.yaml
+ANCHOR_PEER_TX_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME^}MSPanchors.tx
 JSON_DEFINITIONS_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME}_definition.json
-NODEOUS_TARGET=${ORG_TEMP_TARGET}/nodeous-config-${ORG_NAME}.yaml
 
 echo y | rm -r ${ORG_TEMP_TARGET}
 echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET}
@@ -81,11 +79,15 @@ cd ${ORG_TEMP_TARGET}
 
 CLI_CONTAINER=cli 
 ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
+SYS_CHANNEL_NAME=system-channel
 
 CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
 ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
 CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
 CA_USER_URL=https://user1:user1pw@localhost:${CA_7054_PORT}
+CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
+
+CHANNEL_ORGS_LIST=$(docker exec -it cli /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml peers --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' | grep MSPID | awk '{print $2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
 
 
 
@@ -180,13 +182,12 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 
 printf "${C_BLUE}\n>>> CREATING INITIAL configtx.yaml FOR ${ORG_NAME}\n${C_RESET}"
 
-cat << EOF > ${CONFIGTX_TARGET}        
+cat << EOF > ${CONFIGTX_TARGET}
 Organizations:
     - &${ORG_NAME^}
       Name: ${ORG_NAME^}MSP
       ID: ${ORG_NAME^}MSP
       MSPDir: ${ORG_CRYPTO_MATERIAL_TARGET}/msp
-
       Policies:
           Readers:
               Type: Signature
@@ -200,13 +201,12 @@ Organizations:
           Endorsement:
               Type: Signature
               Rule: "OR('${ORG_NAME^}MSP.peer')"
-
       AnchorPeers:
           - Host: peer0.${ORG_URL}
             Port: 7051
 EOF
 
-cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/
+cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}-${ORG_NAME}.yaml
 
 
 
@@ -223,9 +223,6 @@ port: ${CA_7054_PORT}
 debug: false
 crlsizelimit: 512000
 
-#############################################################################
-#  TLS section for the server's listening port
-#############################################################################
 tls:
   enabled: true
   certfile:
@@ -234,9 +231,6 @@ tls:
     type: noclientcert
     certfiles:
 
-#############################################################################
-#  The CA section
-#############################################################################
 ca:
   name: ca.${PROJECT_URL}
   keyfile:
@@ -246,9 +240,6 @@ ca:
 crl:
   expiry: 24h
 
-#############################################################################
-#  The registry section 
-#############################################################################
 registry:
   maxenrollments: -1
 
@@ -266,9 +257,6 @@ registry:
           hf.Registrar.Attributes: "*"
           hf.AffiliationMgr: true
 
-#############################################################################
-#  Database section
-#############################################################################
 db:
   type: sqlite3
   datasource: fabric-ca-server.db
@@ -279,9 +267,6 @@ db:
         certfile:
         keyfile:
 
-#############################################################################
-#  LDAP section
-#############################################################################
 ldap:
    enabled: false
    url: ldap://<adminDN>:<adminPassword>@<host>:<port>/<base>
@@ -300,19 +285,6 @@ ldap:
             - name:
               value:
 
-#############################################################################
-# Affiliations section
-#############################################################################
-#affiliations:
-#   org1:
-#      - department1
-#      - department2
-#   org2:
-#      - department1
-
-#############################################################################
-#  Signing section
-#############################################################################
 signing:
     default:
       usage:
@@ -336,9 +308,6 @@ signing:
             - key agreement
          expiry: 8760h
 
-###########################################################################
-#  Certificate Signing Request (CSR) section
-###########################################################################
 csr:
    cn: ca.${ORG_URL}
    names:
@@ -354,9 +323,6 @@ csr:
       expiry: 131400h
       pathlength: 1
 
-#############################################################################
-# BCCSP (BlockChain Crypto Service Provider) section
-#############################################################################
 bccsp:
     default: SW
     sw:
@@ -365,17 +331,10 @@ bccsp:
         filekeystore:
             keystore: msp/keystore
 
-#############################################################################
-# Multi CA section
-#############################################################################
-
 cacount:
 
 cafiles:
 
-#############################################################################
-# Intermediate CA section
-#############################################################################
 intermediate:
   parentserver:
     url:
@@ -427,9 +386,7 @@ cd ${ORG_TEMP_TARGET}
 
 printf "${C_BLUE}\n>>> CONFIGURING ${ORG_NAME} JSON DEFINITIONS\n${C_RESET}"
 
-mv ${CONFIGTX_TARGET} ${ORG_TEMP_TARGET}/configtx.yaml
 configtxgen -configPath ${ORG_TEMP_TARGET} -printOrg ${ORG_NAME^}MSP > ${JSON_DEFINITIONS_TARGET}
-mv ${ORG_TEMP_TARGET}/configtx.yaml ${CONFIGTX_TARGET}
 
 cp ${JSON_DEFINITIONS_TARGET} ${FABRIC_TARGET}/config/
 
@@ -448,43 +405,50 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}Peer0 peer0.
 
 
 ############################################################## 
-# ADDING ORG TO APPLICATION CHANNEL
+# JOINING ORG TO CONSORTIUM
 ##############################################################
 
-printf "${C_BLUE}\n>>> ADDING ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CONSORTIUM\n${C_RESET}"
 
-[[ -z ${CHANNEL_NAME} ]] && exit 0
-
-CLI_SCRIPT=add-${ORG_NAME}-to-channel.sh
+CLI_SCRIPT=join-${ORG_NAME}-to-consortium.sh
 cat << EOF > ./${CLI_SCRIPT}
 #!/bin/bash
 
-peer channel fetch config blockFetchedConfig.pb -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA} -c ${CHANNEL_NAME}
-configtxlator proto_decode --input blockFetchedConfig.pb --type common.Block | jq .data.data[0].payload.data.config > configBlock.json
-jq -s '.[0] * {"channel_group":{"groups":{"Application":{"groups":{"${ORG_NAME^}MSP":.[1]}}}}}' configBlock.json /etc/hyperledger/configtx/${ORG_NAME}_definition.json > configChanges.json
-configtxlator proto_encode --input configBlock.json --type common.Config --output configBlock.pb
-configtxlator proto_encode --input configChanges.json --type common.Config --output configChanges.pb
-configtxlator compute_update --channel_id ${CHANNEL_NAME} --original configBlock.pb --updated configChanges.pb --output configProposal_${ORG_NAME^}.pb
-configtxlator proto_decode --input configProposal_${ORG_NAME^}.pb --type common.ConfigUpdate | jq . > configProposal_${ORG_NAME^}.json
-echo '{"payload":{"header":{"channel_header":{"channel_id":"${CHANNEL_NAME}","type":2}},"data":{"config_update":'\$(cat configProposal_${ORG_NAME^}.json)'}}}' | jq . > ${ORG_NAME}SubmitReady.json
-configtxlator proto_encode --input ${ORG_NAME}SubmitReady.json --type common.Envelope --output ${ORG_NAME}SubmitReady.pb
+crypto_root=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations
 
-CRYPTO_ROOT=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/
-for org in \$(ls \${CRYPTO_ROOT}); do 
-  org_name=\${org%%.*}
-  org_url=\${org_name}.${PROJECT_URL}
-  [[ \${org_name} != ${ORG_NAME} ]] && {
-    export CORE_PEER_LOCALMSPID=\${org_name^}MSP
-    export CORE_PEER_ADDRESS=peer0.\${org_url}:7051
-    export CORE_PEER_TLS_CERT_FILE=\${CRYPTO_ROOT}/\${org_url}/peers/peer0.\${org_url}/tls/server.crt
-    export CORE_PEER_TLS_KEY_FILE=\${CRYPTO_ROOT}/\${org_url}/peers/peer0.\${org_url}/tls/server.key
-    export CORE_PEER_TLS_ROOTCERT_FILE=\${CRYPTO_ROOT}/\${org_url}/peers/peer0.\${org_url}/tls/ca.crt
-    export CORE_PEER_MSPCONFIGPATH=\${CRYPTO_ROOT}/\${org_url}/users/Admin@\${org_url}/msp
-    peer channel signconfigtx -f ${ORG_NAME}SubmitReady.pb
-  } 
-done
+export CORE_PEER_LOCALMSPID=OrdererMSP
+export CORE_PEER_ADDRESS=orderer0.${CHANNEL_ORG_URL}:7050
+export CORE_PEER_TLS_CERT_FILE=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/server.crt
+export CORE_PEER_TLS_CLIENTKEY_FILE=\${crypto_root}/${PROJECT_URL}/orderers/orderer0.${PROJECT_URL}/tls/server.key
+export CORE_PEER_MSPCONFIGPATH=\${crypto_root}/${PROJECT_URL}/users/Admin@${PROJECT_URL}/msp
 
-peer channel update -f ${ORG_NAME}SubmitReady.pb -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+block_fetched_config_pb=blockFetchedConfig-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
+config_block_json=configBlock-${SYS_CHANNEL_NAME}-${ORG_NAME}.json
+config_block_pb=configBlock-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
+config_changes_json=configChanges-${SYS_CHANNEL_NAME}-${ORG_NAME}.json
+config_changes_pb=configChanges-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
+config_proposal_json=configProposal-${SYS_CHANNEL_NAME}-${ORG_NAME}.json
+config_proposal_pb=configProposal-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
+submit_ready_json=submitReady-${SYS_CHANNEL_NAME}-${ORG_NAME}.json
+submit_ready_pb=submitReady-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
+
+peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA} -c ${SYS_CHANNEL_NAME}
+configtxlator proto_decode --input \${block_fetched_config_pb} --type common.Block | jq .data.data[0].payload.data.config > \${config_block_json}
+
+jq -s '.[0] * {"channel_group":{"groups":{"Consortiums":{"groups":{"SampleConsortium":{"groups":{"${ORG_NAME^}MSP":.[1]}}}}}}}' \${config_block_json} /etc/hyperledger/configtx/${ORG_NAME}_definition.json > \${config_changes_json}
+
+configtxlator proto_encode --input \${config_block_json} --type common.Config --output \${config_block_pb}
+configtxlator proto_encode --input \${config_changes_json} --type common.Config --output \${config_changes_pb}
+configtxlator compute_update --channel_id ${SYS_CHANNEL_NAME} --original \${config_block_pb} --updated \${config_changes_pb} --output \${config_proposal_pb}
+configtxlator proto_decode --input \${config_proposal_pb} --type common.ConfigUpdate | jq . > \${config_proposal_json}
+echo '{"payload":{"header":{"channel_header":{"channel_id":"${SYS_CHANNEL_NAME}","type":2}},"data":{"config_update":'\$(cat \${config_proposal_json})'}}}' | jq . > \${submit_ready_json}
+configtxlator proto_encode --input \${submit_ready_json} --type common.Envelope --output \${submit_ready_pb}
+
+peer channel update -f \${submit_ready_pb} -c ${SYS_CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
 EOF
 
 docker cp ./${CLI_SCRIPT} cli:/tmp/
@@ -495,12 +459,88 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# ADDING INITIAL PEER TO APPLICATION CHANNEL
+# JOINING ORG TO APPLICATION CHANNEL
 ##############################################################
 
-printf "${C_BLUE}\n>>> ADDING THE ANCHOR PEER OF ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+[[ -z ${CHANNEL_NAME} ]] && exit 0
+[[ -z ${CHANNEL_ORG_NAME} ]] && {
+  >&2 echo "YOU DID NOT SPECIFY AN ORG FOR THE CURRENT CHANNEL"
+  exit 1
+}
 
-CLI_SCRIPT=add-peer0.${ORG_URL}-to-channel.sh
+printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+
+CLI_SCRIPT=join-${ORG_NAME}-to-channel.sh
+cat << EOF > ./${CLI_SCRIPT}
+#!/bin/bash
+
+channel_orgs_list=\$(discover --configFile discovery-conf-${CHANNEL_ORG_NAME}.yaml peers --channel ${CHANNEL_NAME} --server peer0.${CHANNEL_ORG_URL}:7051 | grep MSPID | awk '{print \$2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
+
+crypto_root=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations
+
+export CORE_PEER_LOCALMSPID=${CHANNEL_ORG_NAME^}MSP
+export CORE_PEER_ADDRESS=peer0.${CHANNEL_ORG_URL}:7051
+export CORE_PEER_TLS_CERT_FILE=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/server.crt
+export CORE_PEER_TLS_KEY_FILE=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/server.key
+export CORE_PEER_TLS_ROOTCERT_FILE=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTROOTCAS_FILES=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/ca.crt
+export CORE_PEER_TLS_CLIENTCERT_FILE=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/server.crt
+export CORE_PEER_TLS_CLIENTKEY_FILE=\${crypto_root}/${CHANNEL_ORG_URL}/peers/peer0.${CHANNEL_ORG_URL}/tls/server.key
+export CORE_PEER_MSPCONFIGPATH=\${crypto_root}/${CHANNEL_ORG_URL}/users/Admin@${CHANNEL_ORG_URL}/msp
+
+block_fetched_config_pb=blockFetchedConfig-${CHANNEL_NAME}-${ORG_NAME}.pb
+config_block_json=configBlock-${CHANNEL_NAME}-${ORG_NAME}.json
+config_block_pb=configBlock-${CHANNEL_NAME}-${ORG_NAME}.pb
+config_changes_json=configChanges-${CHANNEL_NAME}-${ORG_NAME}.json
+config_changes_pb=configChanges-${CHANNEL_NAME}-${ORG_NAME}.pb
+config_proposal_json=configProposal-${CHANNEL_NAME}-${ORG_NAME}.json
+config_proposal_pb=configProposal-${CHANNEL_NAME}-${ORG_NAME}.pb
+submit_ready_json=submitReady-${CHANNEL_NAME}-${ORG_NAME}.json
+submit_ready_pb=submitReady-${CHANNEL_NAME}-${ORG_NAME}.pb
+
+peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA} -c ${CHANNEL_NAME}
+configtxlator proto_decode --input \${block_fetched_config_pb} --type common.Block | jq .data.data[0].payload.data.config > \${config_block_json}
+
+jq -s '.[0] * {"channel_group":{"groups":{"Application":{"groups":{"${ORG_NAME^}MSP":.[1]}}}}}' \${config_block_json} /etc/hyperledger/configtx/${ORG_NAME}_definition.json > \${config_changes_json}
+
+configtxlator proto_encode --input \${config_block_json} --type common.Config --output \${config_block_pb}
+configtxlator proto_encode --input \${config_changes_json} --type common.Config --output \${config_changes_pb}
+configtxlator compute_update --channel_id ${CHANNEL_NAME} --original \${config_block_pb} --updated \${config_changes_pb} --output \${config_proposal_pb}
+configtxlator proto_decode --input \${config_proposal_pb} --type common.ConfigUpdate | jq . > \${config_proposal_json}
+echo '{"payload":{"header":{"channel_header":{"channel_id":"${CHANNEL_NAME}","type":2}},"data":{"config_update":'\$(cat \${config_proposal_json})'}}}' | jq . > \${submit_ready_json}
+configtxlator proto_encode --input \${submit_ready_json} --type common.Envelope --output \${submit_ready_pb}
+
+for org_name in \${channel_orgs_list}; do
+  org_name=\$(echo \${org_name} | sed 's/\r$//')
+  org_url=\${org_name}.${PROJECT_URL}
+  [[ \${org_name} != ${ORG_NAME} ]] && {
+    export CORE_PEER_LOCALMSPID=\${org_name^}MSP
+    export CORE_PEER_ADDRESS=peer0.\${org_url}:7051
+    export CORE_PEER_TLS_CERT_FILE=\${crypto_root}/\${org_url}/peers/peer0.\${org_url}/tls/server.crt
+    export CORE_PEER_TLS_KEY_FILE=\${crypto_root}/\${org_url}/peers/peer0.\${org_url}/tls/server.key
+    export CORE_PEER_TLS_ROOTCERT_FILE=\${crypto_root}/\${org_url}/peers/peer0.\${org_url}/tls/ca.crt
+    export CORE_PEER_MSPCONFIGPATH=\${crypto_root}/\${org_url}/users/Admin@\${org_url}/msp
+    peer channel signconfigtx -f \${submit_ready_pb}
+  } 
+done
+
+peer channel update -f \${submit_ready_pb} -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+EOF
+
+docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
+docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
+
+
+
+
+############################################################## 
+# JOINING ANCHOR PEER TO APPLICATION CHANNEL
+##############################################################
+
+printf "${C_BLUE}\n>>> JOINING THE ANCHOR PEER OF ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+
+CLI_SCRIPT=join-peer0.${ORG_URL}-to-channel.sh
 
 cat << EOF > ./${CLI_SCRIPT}
 #!/bin/bash
@@ -522,9 +562,29 @@ sleep 10
 peer channel join -b ${CHANNEL_NAME}.block
 EOF
 
-docker cp ./${CLI_SCRIPT} cli:/tmp/
+docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
 docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
 docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
+
+
+
+
+############################################################## 
+# CONFIGURING DISCOVERY SERVICE IN CLI CONTAINER
+##############################################################
+
+printf "${C_BLUE}\n>>> CONFIGURING DISCOVERY SERVICE FOR ${ORG_NAME} IN THE CLI CONTAINER\n${C_RESET}"
+
+PRIV_KEY_FILENAME=$(docker exec ${CLI_CONTAINER} ls ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/User1@${ORG_URL}/msp/keystore/ | head -n 1)
+
+docker exec ${CLI_CONTAINER} discover \
+	--configFile discovery-conf-${ORG_NAME}.yaml \
+	--tlsCert ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.crt \
+	--tlsKey ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key \
+	--peerTLSCA ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/ca.crt \
+	--userKey ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/User1@${ORG_URL}/msp/keystore/${PRIV_KEY_FILENAME} \
+	--userCert ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/User1@${ORG_URL}/msp/signcerts/cert.pem \
+	--MSP ${ORG_NAME^}MSP saveConfig
 
 
 
