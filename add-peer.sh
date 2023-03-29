@@ -32,7 +32,7 @@ ADMIN_PASSWORD=$7
 printf "${C_BLUE}\n>>> VERIFYING IF ${PEER_NAME}.${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
 
 docker ps | grep -i ${PEER_NAME}.${ORG_NAME} &> /dev/null && {
-  >&2 echo "${PEER_NAME}.${ORG_NAME} ALREADY EXISTS!"
+  >&2 echo -e "${C_RED}ERROR: ${PEER_NAME}.${ORG_NAME} already exists!${C_RESET}"
   exit 1
 }
 
@@ -55,24 +55,24 @@ ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/peerOrganizations/${OR
 PEER_CRYPTO_MATERIAL_TARGET=${ORG_CRYPTO_MATERIAL_TARGET}/peers/${PEER_NAME}.${ORG_URL}
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-ORG_TEMP_TARGET=${SCRIPT}/${ORG_NAME}
-DOCKER_COMPOSE_TARGET=${ORG_TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
+TEMP_TARGET=${SCRIPT}/${ORG_NAME}_tmp
+DOCKER_COMPOSE_TARGET=${TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
 
-echo y | rm -r ${ORG_TEMP_TARGET}
+echo y | rm -r ${TEMP_TARGET}
 echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET}
 
-mkdir -p ${ORG_TEMP_TARGET}
+mkdir -p ${TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
 
-cp ${FABRIC_TARGET}/.env ${ORG_TEMP_TARGET}
-cd ${ORG_TEMP_TARGET}
+cp ${FABRIC_TARGET}/.env ${TEMP_TARGET}
+cd ${TEMP_TARGET}
 
 CLI_CONTAINER=cli
 ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
 
 CA_7054_PORT=$(docker inspect ca.${ORG_URL} | grep HostPort | head -n 1 | awk '{print $2}' | tr -d '"')
 [[ ! $? -eq 0 ]] && {
-  >&2 echo "COULD NOT OBTAIN THE PORT OF THE CA OF ${ORG_NAME} - CHECK IF ORG EXISTS"
+  >&2 echo -e "${C_RED}ERROR: could not obtain the port of the ca of ${ORG_NAME} - check if org exists!${C_RESET}"
   exit 1
 }
 
@@ -90,7 +90,7 @@ printf "${C_BLUE}\n>>> VERIFYING AUTHORIZATION OF ${ADMIN_USERNAME}\n${C_RESET}"
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
-cd ${ORG_TEMP_TARGET}
+cd ${TEMP_TARGET}
 
 
 
@@ -195,32 +195,42 @@ CLI_SCRIPT=add-${PEER_NAME}.${ORG_URL}-to-channel.sh
 cat << EOF > ./${CLI_SCRIPT}
 #!/bin/bash
 
-export CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
-export CORE_PEER_ADDRESS=peer0.${ORG_URL}:7051
-export CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/ca.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.crt
-export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key
-export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
+function assume_role {
+  
+  peer_name=\$1
+  
+  export CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
+  export CORE_PEER_ADDRESS=\${peer_name}.${ORG_URL}:7051
+  export CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/server.crt
+  export CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/server.key
+  export CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/ca.crt
+  export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/ca.crt
+  export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/server.crt
+  export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/\${peer_name}.${ORG_URL}/tls/server.key
+  export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
+}
+
+assume_role peer0
 
 org_channels_list=\$(peer channel list | sed 1d)
 
-export CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
-export CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051
-export CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt
-export CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key
-export CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt
-export CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt
-export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt
-export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key
-export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
-
 for channel_name in \${org_channels_list}; do
+
+  assume_role peer0
+
+  channel_chaincodes_list=\$(peer lifecycle chaincode querycommitted --channelID \${channel_name} | tail -n +2 | tr -d "," | awk '{print \$2}')
+
+  assume_role ${PEER_NAME}
+
+  echo -e "${C_BLUE}\nJoining ${PEER_NAME} to channel \${channel_name}${C_RESET}"  
   peer channel fetch oldest \${channel_name}.block -c \${channel_name} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
   sleep 10
   peer channel join -b \${channel_name}.block
+
+  for chaincode in \${channel_chaincodes_list}; do
+    echo -e "${C_BLUE}\nInstalling the \${chaincode} chaincode in ${PEER_NAME}${C_RESET}"
+    peer lifecycle chaincode install \${chaincode}-package.tar.gz
+  done
 done
 EOF
 
@@ -235,6 +245,6 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 # CLEAN UP
 ##############################################################
 
-printf "${C_BLUE}\n>>> CLEANING UP ${ORG_TEMP_TARGET}\n${C_RESET}"
+printf "${C_BLUE}\n>>> CLEANING UP ${TEMP_TARGET}\n${C_RESET}"
 
-echo y | rm -r ${ORG_TEMP_TARGET}
+echo y | rm -r ${TEMP_TARGET}

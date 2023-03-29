@@ -34,7 +34,7 @@ CHANNEL_ORG_NAME=$9
 printf "${C_BLUE}\n>>> VERIFYING IF ${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
 
 docker ps | grep -i ${ORG_NAME} &> /dev/null && {
-  >&2 echo "${ORG_NAME} ALREADY EXISTS!"
+  >&2 echo -e "${C_RED}ERROR: ${ORG_NAME} already exists!${C_RESET}"
   exit 1
 }
 
@@ -86,8 +86,6 @@ ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@
 CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
 CA_USER_URL=https://user1:user1pw@localhost:${CA_7054_PORT}
 CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
-
-CHANNEL_ORGS_LIST=$(docker exec -it cli /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml peers --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' | grep MSPID | awk '{print $2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
 
 
 
@@ -459,14 +457,29 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# JOINING ORG TO APPLICATION CHANNEL
+# VERIFICATIONS: WAS CHANNEL SPECIFIED? 
+# DOES SPECIFIED CHANNEL ORG EXIST AND BELONG TO CHANNEL?
 ##############################################################
+
+printf "${C_BLUE}\n>>> VERIFYING IF CHANNEL WAS SPECIFIED, AND IF A CORRESPONDING ORG WAS SPECIFIED CORRECTLY\n${C_RESET}"
 
 [[ -z ${CHANNEL_NAME} ]] && exit 0
 [[ -z ${CHANNEL_ORG_NAME} ]] && {
-  >&2 echo "YOU DID NOT SPECIFY AN ORG FOR THE CURRENT CHANNEL"
+  >&2 echo -e "${C_RED}ERROR: you did not provide an org that is part of the ${CHANNEL_NAME} channel! (${ORG_NAME} will not be added to ${CHANNEL_NAME})${C_RESET}"
   exit 1
 }
+
+docker exec -it ${CLI_CONTAINER} /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' &> /dev/null || {
+  >&2 echo -e "${C_RED}ERROR: ${CHANNEL_ORG_NAME} either does not exist or does not belong to ${CHANNEL_NAME}! (${ORG_NAME} will not be added to ${CHANNEL_NAME})${C_RESET}"
+  exit 1
+}
+
+
+
+
+############################################################## 
+# JOINING ORG TO APPLICATION CHANNEL
+##############################################################
 
 printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
 
@@ -474,7 +487,7 @@ CLI_SCRIPT=join-${ORG_NAME}-to-channel.sh
 cat << EOF > ./${CLI_SCRIPT}
 #!/bin/bash
 
-channel_orgs_list=\$(discover --configFile discovery-conf-${CHANNEL_ORG_NAME}.yaml peers --channel ${CHANNEL_NAME} --server peer0.${CHANNEL_ORG_URL}:7051 | grep MSPID | awk '{print \$2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
+channel_orgs_list=\$(discover --configFile discovery-conf-${CHANNEL_ORG_NAME}.yaml config --channel ${CHANNEL_NAME} --server peer0.${CHANNEL_ORG_URL}:7051 | grep name | grep -v "Orderer" | awk '{print \$2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
 
 crypto_root=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations
 

@@ -39,16 +39,16 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 
-CHANNEL_TEMP_TARGET=${SCRIPT}/channel_tmp
-CONFIGTX_TARGET=${CHANNEL_TEMP_TARGET}/configtx.yaml
-CHANNEL_TX_TARGET=${CHANNEL_TEMP_TARGET}/${CHANNEL_NAME}.tx
+TEMP_TARGET=${SCRIPT}/${CHANNEL_NAME}_tmp
+CONFIGTX_TARGET=${TEMP_TARGET}/configtx.yaml
+CHANNEL_TX_TARGET=${TEMP_TARGET}/${CHANNEL_NAME}.tx
 
-echo y | rm -r ${CHANNEL_TEMP_TARGET}
+echo y | rm -r ${TEMP_TARGET}
 
-mkdir -p ${CHANNEL_TEMP_TARGET}
+mkdir -p ${TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
 
-cd ${CHANNEL_TEMP_TARGET}
+cd ${TEMP_TARGET}
 
 CLI_CONTAINER=cli
 ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
@@ -253,9 +253,9 @@ cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}.yaml
 
 printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION FOR CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
 
-configtxgen -configPath ${CHANNEL_TEMP_TARGET} -profile OrgChannel -outputCreateChannelTx ${CHANNEL_TX_TARGET} -channelID ${CHANNEL_NAME}
+configtxgen -configPath ${TEMP_TARGET} -profile OrgChannel -outputCreateChannelTx ${CHANNEL_TX_TARGET} -channelID ${CHANNEL_NAME}
 if [ "$?" -ne 0 ]; then
-  echo "Failed to generate channel creation transaction..."
+  >&2 echo -e "${C_RED}ERROR: failed to generate channel creation transaction...${C_RESET}"
   exit 1
 fi
 
@@ -324,3 +324,14 @@ for ORG_NAME in ${ORGS_LIST}; do
 
 	done
 done
+
+
+
+
+############################################################## 
+# CLEAN UP
+##############################################################
+
+printf "${C_BLUE}\n>>> CLEANING UP ${TEMP_TARGET}\n${C_RESET}"
+
+echo y | rm -r ${TEMP_TARGET}

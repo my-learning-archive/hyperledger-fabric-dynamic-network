@@ -65,15 +65,9 @@ CLI_CHAINCODE_DIR=$1
 CHAINCODE_LANGUAGE=$2 
 CHAINCODE_LABEL=$3 
 CHAINCODE_VERSION=$4 
-CHANNEL_NAME=$5 
+CHANNEL_NAME=$5
+CHANNEL_ORG_NAME=$6
 { set +x; } 2>/dev/null
-
-ORGS_LIST=$({
-  while (( "$#" )); do
-    echo $6
-    shift
-  done
-})
 
 
 
@@ -90,7 +84,7 @@ SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 
-TEMP_TARGET=${SCRIPT}/chaincode_tmp
+TEMP_TARGET=${SCRIPT}/${CHAINCODE_LABEL}_tmp
 
 echo y | rm -r ${TEMP_TARGET}
 
@@ -103,12 +97,12 @@ ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
 
 ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
+CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
+CHANNEL_ORGS_LIST=$(docker exec -it ${CLI_CONTAINER} /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' | grep name | grep -v "Orderer" | awk '{print $2}' | tr -d '",MSP' | tr '[:upper:]' '[:lower:]' | sort | uniq)
+
 PEERS_LIST=""
-for ORG in ${ORGS_LIST}; do
-  docker ps | grep -i ${ORG} &> /dev/null || {
-    >&2 echo "${ORG} DOES NOT EXISTS!"
-    exit 1
-  }
+for ORG in ${CHANNEL_ORGS_LIST}; do
+  ORG=$(echo ${ORG} |  sed 's/\r$//')
   PEERS_LIST="${PEERS_LIST} "$(docker ps --format {{.Names}} | grep ^peer | grep ${ORG} | sort)
 done
 
@@ -124,14 +118,19 @@ done
 
 
 ############################################################## 
-# VERIFICATIONS - CHAINCODE EXISTS?
+# VERIFICATIONS - CHAINCODE EXISTS? PEER LIST IS EMPTY?
 ##############################################################
 
 printf "${C_BLUE}\n>>> VERIFYING IF CHAINCODE EXISTS\n${C_RESET}"
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
-  >&2 echo "${CLI_CHAINCODE_DIR} DOES NOT EXIST INSIDE THE ${CLI_CONTAINER} CONTAINER!"
+  >&2 echo -e "${C_RED}ERROR: ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
   exit 1
+}
+
+[[ ${PEERS_LIST} == "" ]] && {
+  >&2 echo -e "${C_RED}ERROR: could not get the list of peers in the ${CHANNEL_NAME} channel!${C_RESET}"
+  exit 1  
 }
 
 
@@ -151,7 +150,7 @@ assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 docker exec ${ENV} ${CLI_CONTAINER} bash -c "cd ${CLI_CHAINCODE_DIR}; ${BUILD_COMMAND}"
 
 docker exec ${ENV} ${CLI_CONTAINER} \
-  peer lifecycle chaincode package package.tar.gz \
+  peer lifecycle chaincode package ${CHAINCODE_LABEL}-package.tar.gz \
     --path ${CLI_CHAINCODE_DIR} \
     --lang ${CHAINCODE_LANGUAGE} \
     --label ${CHAINCODE_LABEL}
@@ -170,7 +169,7 @@ for PEER in ${PEERS_LIST}; do
   assumeRole ${PEER}
 
   docker exec ${ENV} ${CLI_CONTAINER} \
-    peer lifecycle chaincode install package.tar.gz
+    peer lifecycle chaincode install ${CHAINCODE_LABEL}-package.tar.gz
 
 done
 
@@ -221,21 +220,28 @@ done
 
 printf "${C_BLUE}\n>>> COMMITTING CHAINCODE\n${C_RESET}"
 
-sleep 60
-
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
-set -x
-docker exec ${ENV} ${CLI_CONTAINER} \
-  peer lifecycle chaincode commit \
-    -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
-    --tls --cafile ${ORDERER_TLS_CA} \
-    --channelID ${CHANNEL_NAME} \
-    --name ${CHAINCODE_LABEL} \
-    --version ${CHAINCODE_VERSION} \
-    --sequence ${CHAINCODE_VERSION} \
-    ${PEER_PARAMETERS}
-{ set +x; } 2>/dev/null
+while true; do
+
+  sleep 10
+
+  docker exec ${ENV} ${CLI_CONTAINER} \
+    peer lifecycle chaincode commit \
+      -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+      --tls --cafile ${ORDERER_TLS_CA} \
+      --channelID ${CHANNEL_NAME} \
+      --name ${CHAINCODE_LABEL} \
+      --version ${CHAINCODE_VERSION} \
+      --sequence ${CHAINCODE_VERSION} \
+      ${PEER_PARAMETERS}
+
+  if [ $? -eq 0 ]; then
+    break
+  fi
+
+done
+
 
 
 
