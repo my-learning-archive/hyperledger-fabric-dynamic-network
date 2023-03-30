@@ -2,5 +2,6 @@ expand/
 config/
 crypto-config/
 *_tmp/
+.vscode/
 
 #!config/genesis.block

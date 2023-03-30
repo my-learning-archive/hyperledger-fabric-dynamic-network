@@ -95,10 +95,6 @@ createEntity "orderer2" "orderer2" "orderer2pw"
 printf "${C_BLUE}\n>>> GENERATING GENESIS BLOCK FOR ORDERER\n${C_RESET}"
 
 configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgOrdererGenesis -channelID system-channel -outputBlock ${FABRIC_TARGET}/config/genesis.block
-if [ "$?" -ne 0 ]; then
-  >&2 echo -e "${C_RED}ERROR: failed to generate orderer genesis block...${C_RESET}"
-  exit 1
-fi
 
 
 
@@ -110,10 +106,6 @@ fi
 printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION\n${C_RESET}"
 
 configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgChannel -outputCreateChannelTx ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx -channelID ${CHANNEL_NAME}
-if [ "$?" -ne 0 ]; then
-  >&2 echo -e "${C_RED}ERROR: failed to generate channel creation transaction...${C_RESET}"
-  exit 1
-fi
 
 
 
@@ -126,10 +118,6 @@ for ORG_NAME in "org1" "org2"; do
 
   printf "${C_BLUE}\n>>> GENERATING ANCHOR PEER TRANSACTION FOR ${ORG_NAME}\n${C_RESET}"
 
-  configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ${FABRIC_TARGET}/config/${ORG_NAME^}MSPanchors.tx -channelID ${CHANNEL_NAME} -asOrg ${ORG_NAME^}MSP
-  if [ "$?" -ne 0 ]; then
-    >&2 echo -e "${C_RED}ERROR: failed to generate anchor peer update for ${ORG_NAME^}MSP...${C_RESET}"
-    exit 1
-  fi  
+  configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ${FABRIC_TARGET}/config/${ORG_NAME^}MSPanchors.tx -channelID ${CHANNEL_NAME} -asOrg ${ORG_NAME^}MSP  
 
 done

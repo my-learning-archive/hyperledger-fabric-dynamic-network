@@ -28,24 +28,10 @@ CHANNEL_ORG_NAME=$9
 
 
 ############################################################## 
-# VERIFICATIONS - ORG ALREADY EXISTS?
-##############################################################
-
-printf "${C_BLUE}\n>>> VERIFYING IF ${ORG_NAME} ALREADY EXISTS\n${C_RESET}"
-
-docker ps | grep -i ${ORG_NAME} &> /dev/null && {
-  >&2 echo -e "${C_RED}ERROR: ${ORG_NAME} already exists!${C_RESET}"
-  exit 1
-}
-
-
-
-
-############################################################## 
 # PROCESSING VARIABLES 
 ##############################################################
 
-printf "${C_BLUE}\n>>> SORTING OUT DIRECTORIES AND GLOBAL VARIABLES, AND REMOVING PREVIOUS CONFIGURATIONS\n${C_RESET}"
+printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 ORG_URL=${ORG_NAME}.${PROJECT_URL}
@@ -64,6 +50,54 @@ CA_SERVER_TARGET=${ORG_TEMP_TARGET}/fabric-ca-server-config-${ORG_NAME}.yaml
 ANCHOR_PEER_TX_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME^}MSPanchors.tx
 JSON_DEFINITIONS_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME}_definition.json
 
+CLI_CONTAINER=cli 
+ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
+SYS_CHANNEL_NAME=system-channel
+
+CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
+ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
+CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
+CA_USER_URL=https://user1:user1pw@localhost:${CA_7054_PORT}
+CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
+
+
+
+
+############################################################## 
+# VERIFICATIONS
+##############################################################
+
+printf "${C_BLUE}\n>>> VERIFICATION: DOES ${ORG_NAME} ALREADY EXIST?\n${C_RESET}"
+
+docker ps | grep -i ${ORG_NAME} &> /dev/null && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} already exists!${C_RESET}"
+  exit 1
+}
+
+[[ -z ${CHANNEL_NAME} ]] || {
+
+  printf "${C_BLUE}\n>>> VERIFICATION: WAS A CHANNEL ORG SPECIFIED CORRECTLY?\n${C_RESET}"
+
+  [[ -z ${CHANNEL_ORG_NAME} ]] && {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an org that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
+    exit 1
+  }
+
+  docker exec -it ${CLI_CONTAINER} /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' &> /dev/null || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CHANNEL_ORG_NAME} either does not exist or does not belong to ${CHANNEL_NAME}!${C_RESET}"
+    exit 1
+  }
+}
+
+
+
+
+############################################################## 
+# PROCESSING DIRECTORIES
+##############################################################
+
+printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+
 echo y | rm -r ${ORG_TEMP_TARGET}
 echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET}
 
@@ -76,16 +110,6 @@ mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca/
 
 cp ${FABRIC_TARGET}/.env ${ORG_TEMP_TARGET}
 cd ${ORG_TEMP_TARGET}
-
-CLI_CONTAINER=cli 
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
-SYS_CHANNEL_NAME=system-channel
-
-CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
-ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
-CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
-CA_USER_URL=https://user1:user1pw@localhost:${CA_7054_PORT}
-CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
 
 
 
@@ -457,29 +481,10 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# VERIFICATIONS: WAS CHANNEL SPECIFIED? 
-# DOES SPECIFIED CHANNEL ORG EXIST AND BELONG TO CHANNEL?
-##############################################################
-
-printf "${C_BLUE}\n>>> VERIFYING IF CHANNEL WAS SPECIFIED, AND IF A CORRESPONDING ORG WAS SPECIFIED CORRECTLY\n${C_RESET}"
-
-[[ -z ${CHANNEL_NAME} ]] && exit 0
-[[ -z ${CHANNEL_ORG_NAME} ]] && {
-  >&2 echo -e "${C_RED}ERROR: you did not provide an org that is part of the ${CHANNEL_NAME} channel! (${ORG_NAME} will not be added to ${CHANNEL_NAME})${C_RESET}"
-  exit 1
-}
-
-docker exec -it ${CLI_CONTAINER} /bin/bash -c 'discover --configFile discovery-conf-'${CHANNEL_ORG_NAME}'.yaml config --channel '${CHANNEL_NAME}' --server peer0.'${CHANNEL_ORG_URL}':7051' &> /dev/null || {
-  >&2 echo -e "${C_RED}ERROR: ${CHANNEL_ORG_NAME} either does not exist or does not belong to ${CHANNEL_NAME}! (${ORG_NAME} will not be added to ${CHANNEL_NAME})${C_RESET}"
-  exit 1
-}
-
-
-
-
-############################################################## 
 # JOINING ORG TO APPLICATION CHANNEL
 ##############################################################
+
+[[ -z ${CHANNEL_NAME} ]] || {
 
 printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
 
@@ -542,7 +547,8 @@ EOF
 
 docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
 docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
-docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT} 
+}
 
 
 
@@ -550,6 +556,8 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 ############################################################## 
 # JOINING ANCHOR PEER TO APPLICATION CHANNEL
 ##############################################################
+
+[[ -z ${CHANNEL_NAME} ]] || {
 
 printf "${C_BLUE}\n>>> JOINING THE ANCHOR PEER OF ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
 
@@ -577,7 +585,8 @@ EOF
 
 docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
 docker exec ${CLI_CONTAINER} chmod +x /tmp/${CLI_SCRIPT}
-docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
+docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT} 
+}
 
 
 

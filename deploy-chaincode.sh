@@ -76,7 +76,7 @@ CHANNEL_ORG_NAME=$6
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> SORTING OUT DIRECTORIES AND GLOBAL VARIABLES, AND REMOVING PREVIOUS CONFIGURATIONS\n${C_RESET}"
+printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 
@@ -85,12 +85,6 @@ FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 
 TEMP_TARGET=${SCRIPT}/${CHAINCODE_LABEL}_tmp
-
-echo y | rm -r ${TEMP_TARGET}
-
-mkdir -p ${TEMP_TARGET}
-
-cd ${TEMP_TARGET}
 
 CLI_CONTAINER=cli
 ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
@@ -118,20 +112,37 @@ done
 
 
 ############################################################## 
-# VERIFICATIONS - CHAINCODE EXISTS? PEER LIST IS EMPTY?
+# VERIFICATIONS
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFYING IF CHAINCODE EXISTS\n${C_RESET}"
+printf "${C_BLUE}\n>>> VERIFICATION: IS THE CHAINCODE AVAILABLE INSIDE THE ${CLI_CONTAINER} CONTAINER?\n${C_RESET}"
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
-  >&2 echo -e "${C_RED}ERROR: ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
   exit 1
 }
 
+printf "${C_BLUE}\n>>> VERIFICATION: DOES ${CHANNEL_NAME} EXIST AND DOES ${CHANNEL_ORG_NAME} BELONG TO IT?\n${C_RESET}"
+
 [[ ${PEERS_LIST} == "" ]] && {
-  >&2 echo -e "${C_RED}ERROR: could not get the list of peers in the ${CHANNEL_NAME} channel!${C_RESET}"
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not get the list of peers in the ${CHANNEL_NAME} channel - check if ${CHANNEL_NAME} exists or if ${CHANNEL_ORG_NAME} belongs to it!${C_RESET}"
   exit 1  
 }
+
+
+
+
+############################################################## 
+# PROCESSING DIRECTORIES
+##############################################################
+
+printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+
+echo y | rm -r ${TEMP_TARGET}
+
+mkdir -p ${TEMP_TARGET}
+
+cd ${TEMP_TARGET}
 
 
 

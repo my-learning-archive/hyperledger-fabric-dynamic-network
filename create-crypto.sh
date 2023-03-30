@@ -65,7 +65,7 @@ fabric-ca-client enroll \
   --caname ${CA_NAME} \
   --tls.certfiles ${CA_TLS_CERTIFICATE}
 [[ ! $? -eq 0 ]] && {
-  >&2 echo -e "${C_RED}ERROR: you are not authorized to operate ${ORG_NAME}!${C_RESET}"
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you are not authorized to operate ${ORG_NAME} - incorrect credentials!${C_RESET}"
   exit 1
 }
 

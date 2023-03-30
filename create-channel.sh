@@ -6,6 +6,34 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 
 
 
+##############################################################
+# FUNCTIONS - START
+##############################################################
+
+function assumeRole {
+
+  PEER_NAME=$1
+  ORG_NAME=$2
+  ORG_URL=${ORG_NAME}.${PROJECT_URL}
+
+  ENV=""
+  ENV="${ENV} -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP"
+	ENV="${ENV} -e CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051"
+	ENV="${ENV} -e CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt"
+	ENV="${ENV} -e CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key"
+	ENV="${ENV} -e CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt"
+	ENV="${ENV} -e CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/users/Admin@${ORG_URL}/msp"
+	ENV="${ENV} -e CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt"
+	ENV="${ENV} -e CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt"
+	ENV="${ENV} -e CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key"
+}
+
+##############################################################
+# FUNCTIONS - END
+##############################################################
+
+
+
 
 ############################################################## 
 # INPUT VARIABLES
@@ -31,7 +59,7 @@ ORGS_LIST=$({
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> SORTING OUT DIRECTORIES AND GLOBAL VARIABLES, AND REMOVING PREVIOUS CONFIGURATIONS\n${C_RESET}"
+printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 
@@ -43,18 +71,58 @@ TEMP_TARGET=${SCRIPT}/${CHANNEL_NAME}_tmp
 CONFIGTX_TARGET=${TEMP_TARGET}/configtx.yaml
 CHANNEL_TX_TARGET=${TEMP_TARGET}/${CHANNEL_NAME}.tx
 
+CLI_CONTAINER=cli
+ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
+CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations
+
+ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
+
+
+
+
+############################################################## 
+# VERIFICATIONS
+##############################################################
+
+printf "${C_BLUE}\n>>> VERIFICATION: DO THE PROVIDED ORGS EXIST?\n${C_RESET}"
+
+for ORG_NAME in ${ORGS_LIST}; do
+
+  docker ps | grep -i ${ORG_NAME} &> /dev/null || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} does not exist!${C_RESET}"
+    exit 1
+  }
+  
+done
+
+printf "${C_BLUE}\n>>> VERIFICATION: DOES ${CHANNEL_NAME} ALREADY EXIST IN THE PROVIDED ORGS?\n${C_RESET}"
+
+for ORG_NAME in ${ORGS_LIST}; do
+
+  assumeRole peer0 ${ORG_NAME}
+
+  docker exec ${ENV} ${CLI_CONTAINER} peer channel list | grep ${CHANNEL_NAME} && {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} is already a part of ${CHANNEL_NAME}!${C_RESET}"
+    exit 1
+  }
+
+done
+
+
+
+
+############################################################## 
+# PROCESSING DIRECTORIES
+##############################################################
+
+printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+
 echo y | rm -r ${TEMP_TARGET}
 
 mkdir -p ${TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
 
 cd ${TEMP_TARGET}
-
-CLI_CONTAINER=cli
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
-CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations
-
-ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
 
 
@@ -254,10 +322,6 @@ cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}.yaml
 printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION FOR CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
 
 configtxgen -configPath ${TEMP_TARGET} -profile OrgChannel -outputCreateChannelTx ${CHANNEL_TX_TARGET} -channelID ${CHANNEL_NAME}
-if [ "$?" -ne 0 ]; then
-  >&2 echo -e "${C_RED}ERROR: failed to generate channel creation transaction...${C_RESET}"
-  exit 1
-fi
 
 cp ${CHANNEL_TX_TARGET} ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx
 
@@ -271,18 +335,15 @@ cp ${CHANNEL_TX_TARGET} ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx
 printf "${C_BLUE}\n>>> CREATING APPLICATION CHANNEL - ${CHANNEL_NAME}\n${C_RESET}"
 
 ORG_NAME=$(echo ${ORGS_LIST} | awk '{print $1;}')
-ORG_URL=${ORG_NAME}.${PROJECT_URL}
 
-docker exec -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP \
-	-e CORE_PEER_ADDRESS=peer0.${ORG_URL}:7051 \
-	-e CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/server.crt \
-	-e CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/server.key \
-	-e CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/ca.crt \
-	-e CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/users/Admin@${ORG_URL}/msp \
-	-e CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/ca.crt \
-	-e CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/server.crt \
-	-e CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/peer0.${ORG_URL}/tls/server.key \
-    cli peer channel create -o ${ORDERER_CONTAINER_HOSTNAME_PORT} -c ${CHANNEL_NAME} -f /etc/hyperledger/configtx/${CHANNEL_NAME}.tx --tls --cafile ${ORDERER_TLS_CA}
+assumeRole peer0 ${ORG_NAME}
+
+docker exec ${ENV} ${CLI_CONTAINER} \
+  peer channel create \
+    -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+    -c ${CHANNEL_NAME} \
+    -f /etc/hyperledger/configtx/${CHANNEL_NAME}.tx \
+    --tls --cafile ${ORDERER_TLS_CA}
 
 
 
@@ -293,34 +354,23 @@ docker exec -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP \
 
 for ORG_NAME in ${ORGS_LIST}; do
 
-	ORG_URL=${ORG_NAME}.${PROJECT_URL}
 	PEERS_LIST=$(docker ps --format {{.Names}} | grep ^peer | grep ${ORG_NAME} | sort | tr "." " " | awk '{print $1}')
 
 	for PEER_NAME in ${PEERS_LIST}; do
 
 		printf "${C_BLUE}\n>>> ADDING ${PEER_NAME}.${ORG_NAME} TO ${CHANNEL_NAME}\n${C_RESET}"
 
-		docker exec -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP \
-			-e CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051 \
-			-e CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt \
-			-e CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key \
-			-e CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt \
-			-e CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/users/Admin@${ORG_URL}/msp \
-			-e CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt \
-			-e CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt \
-			-e CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key \
-			cli peer channel fetch oldest ${CHANNEL_NAME}.block -c ${CHANNEL_NAME} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile ${ORDERER_TLS_CA}
+    assumeRole ${PEER_NAME} ${ORG_NAME}
 		
-		docker exec -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP \
-			-e CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051 \
-			-e CORE_PEER_TLS_CERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt \
-			-e CORE_PEER_TLS_KEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key \
-			-e CORE_PEER_TLS_ROOTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt \
-			-e CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/users/Admin@${ORG_URL}/msp \
-			-e CORE_PEER_TLS_CLIENTROOTCAS_FILES=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/ca.crt \
-			-e CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.crt \
-			-e CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/${ORG_URL}/peers/${PEER_NAME}.${ORG_URL}/tls/server.key \
-			cli peer channel join -b ${CHANNEL_NAME}.block
+    docker exec ${ENV} ${CLI_CONTAINER} \
+      peer channel fetch oldest ${CHANNEL_NAME}.block \
+        -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+        -c ${CHANNEL_NAME} \
+        --tls --cafile ${ORDERER_TLS_CA}
+
+    docker exec ${ENV} ${CLI_CONTAINER} \
+      peer channel join \
+        -b ${CHANNEL_NAME}.block
 
 	done
 done
