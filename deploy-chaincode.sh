@@ -23,7 +23,7 @@ function assumeRole {
   ORG_URL=${ORG_NAME}.${PROJECT_URL}
   CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-  [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\nActing on behalf of ${PEER_NAME}.${ORG_NAME}${C_RESET}"
+  [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\nActing on behalf of ${PEER_NAME}.${ORG_NAME} ...${C_RESET}"
 
   _CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
   _CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051
@@ -81,18 +81,18 @@ CHANNEL_ORG_NAME=$6
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PROCESSING VARIABLES, DIRECTORIES, AND NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
-PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
+# In the .env file
+PROJECT_URL=${ENV_PROJECT_URL} 
+CLI_CONTAINER=${ENV_CLI_CONTAINER}
+ORDERER_ENDPOINT=${ENV_ORDERER_ENDPOINT}
 
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
 FABRIC_EXPAND_TARGET=${FABRIC_TARGET}/expand
 
 TEMP_TARGET=${SCRIPT}/${CHAINCODE_LABEL}_tmp
-
-CLI_CONTAINER=cli
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
 
 ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
@@ -117,14 +117,12 @@ done
 
 
 ############################################################## 
-# VERIFICATIONS
+# PERFORMING VERIFICATIONS
 #
 # 1. Does the specified chaincode directory exist?
 # 2. Does the specified channel exist? Was a corresponding
 #    org specified, and does it belong to the channel?
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
@@ -143,9 +141,7 @@ docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
-
-echo y | rm -r ${TEMP_TARGET}
+echo y | rm -r ${TEMP_TARGET} &> /dev/null
 
 mkdir -p ${TEMP_TARGET}
 
@@ -211,7 +207,7 @@ for PEER in ${REPRESENTATIVE_PEERS_LIST}; do
 
   docker exec ${ENV} ${CLI_CONTAINER} \
     peer lifecycle chaincode approveformyorg \
-      -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+      -o ${ORDERER_ENDPOINT} \
       --tls --cafile ${ORDERER_TLS_CA} \
       --channelID ${CHANNEL_NAME} \
       --name ${CHAINCODE_LABEL} \
@@ -246,7 +242,7 @@ while true; do
 
   docker exec ${ENV} ${CLI_CONTAINER} \
     peer lifecycle chaincode commit \
-      -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+      -o ${ORDERER_ENDPOINT} \
       --tls --cafile ${ORDERER_TLS_CA} \
       --channelID ${CHANNEL_NAME} \
       --name ${CHAINCODE_LABEL} \
@@ -273,11 +269,11 @@ sleep 60
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
-echo -e "${C_BLUE}\nInvoking chaincode: writing key1:value1${C_RESET}"
+echo -e "${C_BLUE}\nInvoking chaincode: writing key1 : value-${CHAINCODE-LABEL} ...${C_RESET}"
 set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode invoke \
-    -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+    -o ${ORDERER_ENDPOINT} \
     --tls --cafile ${ORDERER_TLS_CA} \
     --channelID ${CHANNEL_NAME} \
     --name ${CHAINCODE_LABEL} \
@@ -285,7 +281,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     -c '{"function":"set","args":["key1", "value1"]}' --waitForEvent
 { set +x; } 2>/dev/null
 
-echo -e "${C_BLUE}\nQuerying chaincode: reading value of key1${C_RESET}"
+echo -e "${C_BLUE}\nQuerying chaincode: reading value of key1 ...${C_RESET}"
 set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode query \
@@ -300,9 +296,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 
 
 ############################################################## 
-# CLEAN UP
+# CLEANING UP
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

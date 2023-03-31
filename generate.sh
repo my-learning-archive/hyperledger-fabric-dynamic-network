@@ -10,13 +10,17 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # PROCESSING VARIABLES 
 ##############################################################
 
-PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
-CHANNEL_NAME=${BASE_CHANNEL_NAME} # In the .env file
+# In the .env file
+PROJECT_URL=${ENV_PROJECT_URL}
+CHANNEL_NAME=${ENV_BASE_CHANNEL_NAME} 
+SYS_CHANNEL_NAME=${ENV_SYS_CHANNEL_NAME}
+
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
 
-rm -fr ${FABRIC_TARGET}/config/*
-rm -fr ${FABRIC_TARGET}/crypto-config/*
+echo y | rm -fr ${FABRIC_TARGET}/config/* &> /dev/null
+echo y | rm -fr ${FABRIC_TARGET}/crypto-config/* &> /dev/null
+
 mkdir -p ${FABRIC_TARGET}/config
 
 
@@ -28,7 +32,7 @@ mkdir -p ${FABRIC_TARGET}/config
 
 for ORG_NAME in "org1" "org2"; do
 
-  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n\n${C_RESET}"
+  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS - ${ORG_NAME}\n\n${C_RESET}"
 
   ORG_URL=${ORG_NAME}.${PROJECT_URL}
   ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/peerOrganizations/${ORG_URL}
@@ -61,7 +65,7 @@ done
 # GENERATING CERTIFICATES FOR ORDERERS
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS FOR THE ORDERERS\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS - orderers\n\n${C_RESET}"
 
 ORG_URL=${PROJECT_URL}
 ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/ordererOrganizations/${ORG_URL}
@@ -94,16 +98,16 @@ createEntity "orderer2" "orderer2" "orderer2pw"
 
 printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_RESET}"
 
-configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgOrdererGenesis -channelID system-channel -outputBlock ${FABRIC_TARGET}/config/genesis.block
+configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgOrdererGenesis -channelID ${SYS_CHANNEL_NAME} -outputBlock ${FABRIC_TARGET}/config/genesis.block
 
 
 
 
 ############################################################## 
-# GENERATING CHANNEL CREATION TRANSACTION 
+# GENERATING BASE APPLICATION CHANNEL CREATION TRANSACTION 
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING APPLICATION CHANNEL CREATION TRANSACTION FOR ${CHANNEL_NAME}\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING APPLICATION CHANNEL CREATION TRANSACTION - ${CHANNEL_NAME}\n\n${C_RESET}"
 
 configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgChannel -outputCreateChannelTx ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx -channelID ${CHANNEL_NAME}
 
@@ -111,12 +115,12 @@ configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgChannel -outputCreateCha
 
 
 ############################################################## 
-# GENERATING ANCHOR PEER TRANSACTIONS 
+# GENERATING BASE ANCHOR PEER TRANSACTIONS 
 ##############################################################
 
 for ORG_NAME in "org1" "org2"; do
 
-  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING ANCHOR PEER UPDATE TRANSACTION FOR ${ORG_NAME}\n\n${C_RESET}"
+  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING ANCHOR PEER UPDATE TRANSACTION - ${ORG_NAME}\n\n${C_RESET}"
 
   configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ${FABRIC_TARGET}/config/${ORG_NAME^}MSPanchors.tx -channelID ${CHANNEL_NAME} -asOrg ${ORG_NAME^}MSP  
 

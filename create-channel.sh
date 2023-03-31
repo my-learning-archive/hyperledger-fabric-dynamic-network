@@ -64,9 +64,12 @@ ORGS_LIST=$({
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PROCESSING VARIABLES, DIRECTORIES, AND NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
-PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
+# In the .env file
+PROJECT_URL=${ENV_PROJECT_URL}
+CLI_CONTAINER=${ENV_CLI_CONTAINER}
+ORDERER_ENDPOINT=${ENV_ORDERER_ENDPOINT}
 
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 FABRIC_TARGET=${SCRIPT}
@@ -76,8 +79,6 @@ TEMP_TARGET=${SCRIPT}/${CHANNEL_NAME}_tmp
 CONFIGTX_TARGET=${TEMP_TARGET}/configtx.yaml
 CHANNEL_TX_TARGET=${TEMP_TARGET}/${CHANNEL_NAME}.tx
 
-CLI_CONTAINER=cli
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
 CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations
 
 ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
@@ -86,14 +87,12 @@ ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
 
 ############################################################## 
-# VERIFICATIONS
+# PERFORMING VERIFICATIONS
 #
 # 1. Do the specified orgs exist?
 # 2. Does any of the specified orgs already belong to an 
 #    equally-named application channel?
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 for ORG_NAME in ${ORGS_LIST}; do
   docker ps | grep -i ${ORG_NAME} &> /dev/null || {
@@ -117,9 +116,7 @@ done
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
-
-echo y | rm -r ${TEMP_TARGET}
+echo y | rm -r ${TEMP_TARGET} &> /dev/null
 
 mkdir -p ${TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
@@ -318,7 +315,7 @@ cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}.yaml
 
 
 ############################################################## 
-# GENERATING CHANNEL CREATION TRANSACTION 
+# GENERATING APPLICATION CHANNEL CREATION TRANSACTION 
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > GENERATING APPLICATION CHANNEL CREATION TRANSACTION\n\n${C_RESET}"
@@ -331,7 +328,7 @@ cp ${CHANNEL_TX_TARGET} ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx
 
 
 ############################################################## 
-# CREATING THE APPLICATION CHANNEL 
+# CREATING APPLICATION CHANNEL 
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > CREATING APPLICATION CHANNEL\n\n${C_RESET}"
@@ -342,7 +339,7 @@ assumeRole peer0 ${ORG_NAME}
 
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer channel create \
-    -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+    -o ${ORDERER_ENDPOINT} \
     -c ${CHANNEL_NAME} \
     -f /etc/hyperledger/configtx/${CHANNEL_NAME}.tx \
     --tls --cafile ${ORDERER_TLS_CA}
@@ -354,19 +351,21 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 # JOINING PEERS TO APPLICATION CHANNEL 
 ##############################################################
 
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > JOINING PEERS TO APPLICATION CHANNEL\n\n${C_RESET}"
+
 for ORG_NAME in ${ORGS_LIST}; do
 
 	PEERS_LIST=$(docker ps --format {{.Names}} | grep ^peer | grep ${ORG_NAME} | sort | tr "." " " | awk '{print $1}')
 
 	for PEER_NAME in ${PEERS_LIST}; do
 
-		printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > JOINING ${ORG_NAME}.${PEER_NAME} TO THE APPLICATION CHANNEL\n\n${C_RESET}"
+    echo -e "${C_BLUE}\nJoining ${PEER_NAME}.${ORG_NAME} ...${C_RESET}"
 
     assumeRole ${PEER_NAME} ${ORG_NAME}
 		
     docker exec ${ENV} ${CLI_CONTAINER} \
       peer channel fetch oldest ${CHANNEL_NAME}.block \
-        -o ${ORDERER_CONTAINER_HOSTNAME_PORT} \
+        -o ${ORDERER_ENDPOINT} \
         -c ${CHANNEL_NAME} \
         --tls --cafile ${ORDERER_TLS_CA}
 
@@ -381,9 +380,7 @@ done
 
 
 ############################################################## 
-# CLEAN UP
+# CLEANING UP
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

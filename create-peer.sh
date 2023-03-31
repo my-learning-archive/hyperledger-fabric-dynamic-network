@@ -34,9 +34,13 @@ ADMIN_PASSWORD=$7
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES, DIRECTORIES, AND NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
-PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
+# In the .env file
+PROJECT_URL=${ENV_PROJECT_URL}
+CLI_CONTAINER=${ENV_CLI_CONTAINER}
+ORDERER_ENDPOINT=${ENV_ORDERER_ENDPOINT}
+
 ORG_URL=${ORG_NAME}.${PROJECT_URL}
 
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -49,9 +53,6 @@ CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/p
 TEMP_TARGET=${SCRIPT}/${ORG_NAME}_tmp
 DOCKER_COMPOSE_TARGET=${TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
 
-CLI_CONTAINER=cli
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
-
 CA_7054_PORT=$(docker inspect ca.${ORG_URL} | grep HostPort | head -n 1 | awk '{print $2}' | tr -d '"')
 
 CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
@@ -61,14 +62,12 @@ CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
 
 
 ############################################################## 
-# VERIFICATIONS
+# PERFORMING VERIFICATIONS
 #
 # 1. Does the specified org exist?
 # 2. Does the specified peer already exist?
 # 3. Are the provided admin credentials authorized?
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 [[ ${CA_7054_PORT} == '' ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not obtain the port of the ca of ${ORG_NAME} - check if ${ORG_NAME} exists and if its CA is running!${C_RESET}"
@@ -82,7 +81,6 @@ docker ps | grep -i ${PEER_NAME}.${ORG_NAME} &> /dev/null && {
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
-cd ${TEMP_TARGET}
 
 
 
@@ -91,10 +89,8 @@ cd ${TEMP_TARGET}
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
-
-echo y | rm -r ${TEMP_TARGET}
-echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET}
+echo y | rm -r ${TEMP_TARGET} &> /dev/null
+echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET} &> /dev/null
 
 mkdir -p ${TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
@@ -184,7 +180,7 @@ createEntity ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
 
 
 ############################################################## 
-# STARTING CONTAINERS
+# STARTING SERVICES
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > STARTING SERVICES\n\n${C_RESET}"
@@ -195,7 +191,7 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}${PEER_NAME^
 
 
 ############################################################## 
-# JOINING PEER TO APPLICATION CHANNEL
+# JOINING PEER TO APPLICATION CHANNELS
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > JOINING PEER TO APPLICATION CHANNELS\n\n${C_RESET}"
@@ -232,13 +228,13 @@ for channel_name in \${org_channels_list}; do
 
   assumeRole ${PEER_NAME}
 
-  echo -e "${C_BLUE}\nJoining peer to the \${channel_name} application channel${C_RESET}"  
-  peer channel fetch oldest \${channel_name}.block -c \${channel_name} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+  echo -e "${C_BLUE}\nJoining peer to \${channel_name} application channel ...${C_RESET}"  
+  peer channel fetch oldest \${channel_name}.block -c \${channel_name} --orderer ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA}
   sleep 10
   peer channel join -b \${channel_name}.block
 
   for chaincode in \${channel_chaincodes_list}; do
-    echo -e "${C_BLUE}\nInstalling the \${chaincode} chaincode${C_RESET}"
+    echo -e "${C_BLUE}\nInstalling \${chaincode} chaincode ...${C_RESET}"
     peer lifecycle chaincode install \${chaincode}-package.tar.gz
   done
 done
@@ -252,9 +248,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# CLEAN UP
+# CLEANING UP
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

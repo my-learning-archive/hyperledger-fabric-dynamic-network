@@ -52,25 +52,9 @@ Check the couchdb of any peer, for instance, peer1.org3:
 
 
 ---
-**Other notes:**
+**A hard test:**
 
-In the previous example execution, note that **org1**, **org2** and **org3** are part of **allarewelcome**, but only **org2** and **org3** are part of **newchannel** - naturally, the couchdb of peers from **org1** will not have entries for the chaincode deployed to **newchannel**.
-
-It is also interesting to see what happens if a new peer is added after chaincodes have been committed to the channel, let's try it:
-
-Add a peer to **org3**:
-
-> `./create-peer.sh peer2 org3 17051 17053 17984 Org3Admin Org3AdminPassword`
-
-Check the couchdb of the newly added **peer2.org3**:
-  1. Access it in any browser - `localhost:17984/_utils`
-  2. Use the credentials defined in the docker-compose file - `peer2.Org3:password`
-  3. Check the couchdb is updated with the databases referent to the deployed chaincodes - `allarewelcome_allarewelcomecc` and `newchannel_newchannelcc`
-  4. Check if the key written at the end of the deploy-chaincode.sh script is there - `key1`
-
-Test a chaincode invocation, with the participation of **peer2.org3**:
-
-> `docker exec -e CORE_PEER_LOCALMSPID=Org2MSP -e CORE_PEER_ADDRESS=peer0.org2.example.com:7051 -e CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt -e CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key -e CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt -e CORE_PEER_TLS_CLIENTROOTCAS_FILES=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt -e CORE_PEER_TLS_CLIENTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.crt -e CORE_PEER_TLS_CLIENTKEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/server.key -e CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp cli peer chaincode invoke -o orderer0.example.com:7050 --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer0.example.com/tls/tlscacerts/tls-localhost-7054-ca-example-com.pem --channelID newchannel --name newchannelcc --peerAddresses peer0.org2.example.com:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --peerAddresses peer1.org2.example.com:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls/ca.crt --peerAddresses peer0.org3.example.com:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls/ca.crt --peerAddresses peer1.org3.example.com:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org3.example.com/peers/peer1.org3.example.com/tls/ca.crt --peerAddresses peer2.org3.example.com:7051 --tlsRootCertFiles /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org3.example.com/peers/peer2.org3.example.com/tls/ca.crt -c '{"function":"set","args":["key1", "value1"]}' --waitForEvent`
+> `./teardown.sh && ./generate.sh && ./start.sh && ./create-org.sh org3 15051 15053 15984 15054 Org3Admin Org3AdminPassword allarewelcome org1 && ./create-peer.sh peer1 org3 16051 16053 16984 Org3Admin Org3AdminPassword && ./create-channel.sh newchannel org2 org3 && ./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang allarewelcomecc 1 allarewelcome org1 && ./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang newchannelcc 1 newchannel org2 && ./create-peer.sh peer2 org3 17051 17053 17984 Org3Admin Org3AdminPassword && ./create-org.sh org4 20051 20053 20984 20054 Org4Admin Org4Password newchannel org3 && sleep 30 && ./create-org.sh org5 25051 25053 25984 25054 Org5Admin Org5Password newchannel org4 && ./create-peer.sh peer1 org5 30051 30054 30984 Org5Admin Org5Password && ./create-channel.sh anothernewchannel org1 org3 org5 && sleep 30 && ./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang anothernewchannelcc 1 anothernewchannel org5 && ./create-channel.sh themegachannel org1 org2 org3 org4 org5 && sleep 30 && ./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang themegachaincode 1 themegachannel org5 && ./deploy-chaincode.sh /opt/gopath/src/github.com/chaincode/sacc golang anothermegachaincode 1 themegachannel org3`
 
 
 ---
@@ -84,3 +68,5 @@ Test a chaincode invocation, with the participation of **peer2.org3**:
   - ~~**deploy-chaincode.sh:** substitute long sleeps for periodic retries~~
   - ~~**README.md** should be updated to reflect all changes - for now it is only compatible with tag v1.0~~
   - ~~handle the preliminary verifications and error checking the same way for all scripts~~
+  - Implement script to join existing orgs to existing channels
+  - Migrate some global variables such as $CLI_CONTAINER and $ORDERER_CONTAINER_HOSTNAME_PORT to the .env file

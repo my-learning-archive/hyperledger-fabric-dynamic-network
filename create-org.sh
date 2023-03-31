@@ -36,9 +36,14 @@ CHANNEL_ORG_NAME=$9
 # PROCESSING VARIABLES 
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES, DIRECTORIES, AND NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
-PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
+# In the .env file
+PROJECT_URL=${ENV_PROJECT_URL}
+CLI_CONTAINER=${ENV_CLI_CONTAINER} 
+ORDERER_ENDPOINT=${ENV_ORDERER_ENDPOINT}
+SYS_CHANNEL_NAME=${ENV_SYS_CHANNEL_NAME}
+
 ORG_URL=${ORG_NAME}.${PROJECT_URL}
 
 SCRIPT=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -55,10 +60,6 @@ CA_SERVER_TARGET=${ORG_TEMP_TARGET}/fabric-ca-server-config-${ORG_NAME}.yaml
 ANCHOR_PEER_TX_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME^}MSPanchors.tx
 JSON_DEFINITIONS_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME}_definition.json
 
-CLI_CONTAINER=cli 
-ORDERER_CONTAINER_HOSTNAME_PORT=orderer0.${PROJECT_URL}:7050
-SYS_CHANNEL_NAME=system-channel
-
 CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
 ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
 CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
@@ -69,14 +70,12 @@ CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
 
 
 ############################################################## 
-# VERIFICATIONS
+# PERFORMING VERIFICATIONS
 #
 # 1. Does the specified org already exist?
 # 2. If application channel was specified, was a corresponding
 #    org also specified, and does it belong to the channel?
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 docker ps | grep -i ${ORG_NAME} &> /dev/null && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} already exists!${C_RESET}"
@@ -103,10 +102,8 @@ docker ps | grep -i ${ORG_NAME} &> /dev/null && {
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
-
-echo y | rm -r ${ORG_TEMP_TARGET}
-echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET}
+echo y | rm -r ${ORG_TEMP_TARGET} &> /dev/null
+echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET} &> /dev/null
 
 mkdir -p ${ORG_TEMP_TARGET}
 mkdir -p ${FABRIC_EXPAND_TARGET}
@@ -408,7 +405,7 @@ cd ${ORG_TEMP_TARGET}
 
 
 ############################################################## 
-# GENERATING ORG JSON DEFINITIONS
+# GENERATING ORGANIZATION DEFINITIONS
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > GENERATING ORGANIZATION DEFINITIONS\n\n${C_RESET}"
@@ -421,7 +418,7 @@ cp ${JSON_DEFINITIONS_TARGET} ${FABRIC_TARGET}/config/
 
 
 ############################################################## 
-# STARTING CONTAINERS
+# STARTING SERVICES
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > STARTING SERVICES\n\n${C_RESET}"
@@ -432,7 +429,7 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}Peer0 peer0.
 
 
 ############################################################## 
-# JOINING ORG TO CONSORTIUM
+# JOINING ORGANIZATION TO CONSORTIUM
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO CONSORTIUM\n\n${C_RESET}"
@@ -463,7 +460,7 @@ config_proposal_pb=configProposal-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
 submit_ready_json=submitReady-${SYS_CHANNEL_NAME}-${ORG_NAME}.json
 submit_ready_pb=submitReady-${SYS_CHANNEL_NAME}-${ORG_NAME}.pb
 
-peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA} -c ${SYS_CHANNEL_NAME}
+peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA} -c ${SYS_CHANNEL_NAME}
 configtxlator proto_decode --input \${block_fetched_config_pb} --type common.Block | jq .data.data[0].payload.data.config > \${config_block_json}
 
 jq -s '.[0] * {"channel_group":{"groups":{"Consortiums":{"groups":{"SampleConsortium":{"groups":{"${ORG_NAME^}MSP":.[1]}}}}}}}' \${config_block_json} /etc/hyperledger/configtx/${ORG_NAME}_definition.json > \${config_changes_json}
@@ -475,7 +472,7 @@ configtxlator proto_decode --input \${config_proposal_pb} --type common.ConfigUp
 echo '{"payload":{"header":{"channel_header":{"channel_id":"${SYS_CHANNEL_NAME}","type":2}},"data":{"config_update":'\$(cat \${config_proposal_json})'}}}' | jq . > \${submit_ready_json}
 configtxlator proto_encode --input \${submit_ready_json} --type common.Envelope --output \${submit_ready_pb}
 
-peer channel update -f \${submit_ready_pb} -c ${SYS_CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+peer channel update -f \${submit_ready_pb} -c ${SYS_CHANNEL_NAME} -o ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA}
 EOF
 
 docker cp ./${CLI_SCRIPT} cli:/tmp/
@@ -486,12 +483,12 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# JOINING ORG TO APPLICATION CHANNEL
+# JOINING ORGANIZATION TO APPLICATION CHANNEL
 ##############################################################
 
 [[ -z ${CHANNEL_NAME} ]] || {
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO THE ${CHANNEL_NAME} APPLICATION CHANNEL\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO APPLICATION CHANNEL\n\n${C_RESET}"
 
 CLI_SCRIPT=join-${ORG_NAME}-to-channel.sh
 cat << EOF > ./${CLI_SCRIPT}
@@ -521,7 +518,7 @@ config_proposal_pb=configProposal-${CHANNEL_NAME}-${ORG_NAME}.pb
 submit_ready_json=submitReady-${CHANNEL_NAME}-${ORG_NAME}.json
 submit_ready_pb=submitReady-${CHANNEL_NAME}-${ORG_NAME}.pb
 
-peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA} -c ${CHANNEL_NAME}
+peer channel fetch config \${block_fetched_config_pb} -o ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA} -c ${CHANNEL_NAME}
 configtxlator proto_decode --input \${block_fetched_config_pb} --type common.Block | jq .data.data[0].payload.data.config > \${config_block_json}
 
 jq -s '.[0] * {"channel_group":{"groups":{"Application":{"groups":{"${ORG_NAME^}MSP":.[1]}}}}}' \${config_block_json} /etc/hyperledger/configtx/${ORG_NAME}_definition.json > \${config_changes_json}
@@ -547,7 +544,7 @@ for org_name in \${channel_orgs_list}; do
   } 
 done
 
-peer channel update -f \${submit_ready_pb} -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+peer channel update -f \${submit_ready_pb} -c ${CHANNEL_NAME} -o ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA}
 EOF
 
 docker cp ./${CLI_SCRIPT} ${CLI_CONTAINER}:/tmp/
@@ -564,7 +561,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 [[ -z ${CHANNEL_NAME} ]] || {
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CONFIGURING THE ANCHOR PEER\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ANCHOR PEER TO APPLICATION CHANNEL\n\n${C_RESET}"
 
 CLI_SCRIPT=join-peer0.${ORG_URL}-to-channel.sh
 
@@ -581,7 +578,7 @@ export CORE_PEER_TLS_CLIENTCERT_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/p
 export CORE_PEER_TLS_CLIENTKEY_FILE=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/peers/peer0.${ORG_URL}/tls/server.key
 export CORE_PEER_MSPCONFIGPATH=${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/Admin@${ORG_URL}/msp
 
-peer channel fetch oldest ${CHANNEL_NAME}.block -c ${CHANNEL_NAME} -o ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
+peer channel fetch oldest ${CHANNEL_NAME}.block -c ${CHANNEL_NAME} -o ${ORDERER_ENDPOINT} --tls --cafile \${ORDERER_TLS_CA}
 
 sleep 10
 
@@ -597,10 +594,10 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 
 ############################################################## 
-# CONFIGURING DISCOVERY SERVICE IN CLI CONTAINER
+# CONFIGURING DISCOVERY SERVICE
 ##############################################################
 
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CONFIGURING THE DISCOVERY SERVICE\n\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CONFIGURING DISCOVERY SERVICE\n\n${C_RESET}"
 
 PRIV_KEY_FILENAME=$(docker exec ${CLI_CONTAINER} ls ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/User1@${ORG_URL}/msp/keystore/ | head -n 1)
 
@@ -617,9 +614,7 @@ docker exec ${CLI_CONTAINER} discover \
 
 
 ############################################################## 
-# CLEAN UP
+# CLEANING UP
 ##############################################################
-
-printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${ORG_TEMP_TARGET}
