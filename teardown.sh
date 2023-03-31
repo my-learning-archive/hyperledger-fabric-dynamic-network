@@ -10,7 +10,7 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # TEARING DOWN THE NETWORK 
 ##############################################################
 
-printf "${C_BLUE}\n>>> TEARING DOWN\n${C_RESET}"
+printf "${C_BLUE_BOLD}\nteardown.sh:${C_BLUE}\n > TEARING DOWN THE NETWORK\n\n${C_RESET}"
 
 # Shut down the Docker containers
 docker compose -f docker-compose.yml kill && docker compose -f docker-compose.yml down --volumes --remove-orphans

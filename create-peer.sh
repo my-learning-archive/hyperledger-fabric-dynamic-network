@@ -10,7 +10,7 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # INPUT VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLE - add-peer.sh\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_BLUE}\n > DEFINING INPUT VARIABLE\n\n${C_RESET}"
 
 set -x
 PEER_NAME=$1
@@ -22,6 +22,11 @@ ADMIN_USERNAME=$6
 ADMIN_PASSWORD=$7
 { set +x; } 2>/dev/null
 
+[[ -z ${PEER_NAME} || -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ADMIN_USERNAME} || -z ${ADMIN_PASSWORD} ]] && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+  exit 1   
+}
+
 
 
 
@@ -29,7 +34,7 @@ ADMIN_PASSWORD=$7
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 ORG_URL=${ORG_NAME}.${PROJECT_URL}
@@ -57,23 +62,23 @@ CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
 
 ############################################################## 
 # VERIFICATIONS
+#
+# 1. Does the specified org exist?
+# 2. Does the specified peer already exist?
+# 3. Are the provided admin credentials authorized?
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFICATION: DOES ${ORG_NAME} EXIST?\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 [[ ${CA_7054_PORT} == '' ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not obtain the port of the ca of ${ORG_NAME} - check if ${ORG_NAME} exists and if its CA is running!${C_RESET}"
   exit 1
 }
 
-printf "${C_BLUE}\n>>> VERIFICATION: DOES ${PEER_NAME}.${ORG_NAME} ALREADY EXIST?\n${C_RESET}"
-
 docker ps | grep -i ${PEER_NAME}.${ORG_NAME} &> /dev/null && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${PEER_NAME}.${ORG_NAME} already exists!${C_RESET}"
   exit 1
 }
-
-printf "${C_BLUE}\n>>> VERIFICATION: IS ${ADMIN_USERNAME} AUTHENTICATED AND AUTHORIZED?\n${C_RESET}"
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
@@ -86,7 +91,7 @@ cd ${TEMP_TARGET}
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}
 echo y | rm -r ${PEER_CRYPTO_MATERIAL_TARGET}
@@ -104,7 +109,7 @@ cd ${TEMP_TARGET}
 # CREATING CONFIG FILES - docker-compose.yaml
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING INITIAL docker-compose.yaml FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > CREATING docker-compose.yaml\n\n${C_RESET}"
 
 cat << EOF > ${DOCKER_COMPOSE_TARGET}
 version: '2.2'
@@ -171,7 +176,7 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 # GENERATING CERTIFICATES
 ##############################################################
 
-printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${PEER_NAME}.${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > GENERATING CRYPTO-MATERIALS\n\n${C_RESET}"
 
 createEntity ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
 
@@ -182,7 +187,7 @@ createEntity ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
 # STARTING CONTAINERS
 ##############################################################
 
-printf "${C_BLUE}\n>>> STARTING ${PEER_NAME}.${ORG_NAME} CONTAINERS\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > STARTING SERVICES\n\n${C_RESET}"
 
 docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}${PEER_NAME^} ${PEER_NAME}.${ORG_URL}
 
@@ -193,7 +198,7 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}${PEER_NAME^
 # JOINING PEER TO APPLICATION CHANNEL
 ##############################################################
 
-printf "${C_BLUE}\n>>> JOINING ${PEER_NAME}.${ORG_NAME} TO THE APPLICATION CHANNELS OF ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > JOINING PEER TO APPLICATION CHANNELS\n\n${C_RESET}"
 
 CLI_SCRIPT=add-${PEER_NAME}.${ORG_URL}-to-channel.sh
 
@@ -227,13 +232,13 @@ for channel_name in \${org_channels_list}; do
 
   assumeRole ${PEER_NAME}
 
-  echo -e "${C_BLUE}\nJoining ${PEER_NAME} to channel \${channel_name}${C_RESET}"  
+  echo -e "${C_BLUE}\nJoining peer to the \${channel_name} application channel${C_RESET}"  
   peer channel fetch oldest \${channel_name}.block -c \${channel_name} --orderer ${ORDERER_CONTAINER_HOSTNAME_PORT} --tls --cafile \${ORDERER_TLS_CA}
   sleep 10
   peer channel join -b \${channel_name}.block
 
   for chaincode in \${channel_chaincodes_list}; do
-    echo -e "${C_BLUE}\nInstalling the \${chaincode} chaincode in ${PEER_NAME}${C_RESET}"
+    echo -e "${C_BLUE}\nInstalling the \${chaincode} chaincode${C_RESET}"
     peer lifecycle chaincode install \${chaincode}-package.tar.gz
   done
 done
@@ -250,6 +255,6 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 # CLEAN UP
 ##############################################################
 
-printf "${C_BLUE}\n>>> CLEANING UP ${TEMP_TARGET}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

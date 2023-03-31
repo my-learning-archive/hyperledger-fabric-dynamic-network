@@ -10,7 +10,7 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # STOPPING THE NETWORK 
 ##############################################################
 
-printf "${C_BLUE}\n>>> STOPPING THE NETWORK\n${C_RESET}"
+printf "${C_BLUE_BOLD}\nstop.sh:${C_BLUE}\n > STOPPING THE NETWORK\n\n${C_RESET}"
 
 # Shut down the Docker containers that might be currently running.
 docker compose -f docker-compose.yml stop

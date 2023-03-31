@@ -28,7 +28,7 @@ mkdir -p ${FABRIC_TARGET}/config
 
 for ORG_NAME in "org1" "org2"; do
 
-  printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n${C_RESET}"
+  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n\n${C_RESET}"
 
   ORG_URL=${ORG_NAME}.${PROJECT_URL}
   ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/peerOrganizations/${ORG_URL}
@@ -61,7 +61,7 @@ done
 # GENERATING CERTIFICATES FOR ORDERERS
 ##############################################################
 
-printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR THE ORDERER ORG\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING CRYPTO-MATERIALS FOR THE ORDERERS\n\n${C_RESET}"
 
 ORG_URL=${PROJECT_URL}
 ORG_CRYPTO_MATERIAL_TARGET=${FABRIC_TARGET}/crypto-config/ordererOrganizations/${ORG_URL}
@@ -92,7 +92,7 @@ createEntity "orderer2" "orderer2" "orderer2pw"
 # GENERATING GENESIS BLOCK 
 ##############################################################
 
-printf "${C_BLUE}\n>>> GENERATING GENESIS BLOCK FOR ORDERER\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING GENESIS BLOCK\n\n${C_RESET}"
 
 configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgOrdererGenesis -channelID system-channel -outputBlock ${FABRIC_TARGET}/config/genesis.block
 
@@ -103,7 +103,7 @@ configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgOrdererGenesis -channelI
 # GENERATING CHANNEL CREATION TRANSACTION 
 ##############################################################
 
-printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING APPLICATION CHANNEL CREATION TRANSACTION FOR ${CHANNEL_NAME}\n\n${C_RESET}"
 
 configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgChannel -outputCreateChannelTx ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx -channelID ${CHANNEL_NAME}
 
@@ -116,7 +116,7 @@ configtxgen -configPath ${FABRIC_TARGET} -profile TwoOrgChannel -outputCreateCha
 
 for ORG_NAME in "org1" "org2"; do
 
-  printf "${C_BLUE}\n>>> GENERATING ANCHOR PEER TRANSACTION FOR ${ORG_NAME}\n${C_RESET}"
+  printf "${C_BLUE_BOLD}\ngenerate.sh:${C_BLUE}\n > GENERATING ANCHOR PEER UPDATE TRANSACTION FOR ${ORG_NAME}\n\n${C_RESET}"
 
   configtxgen -profile TwoOrgChannel -outputAnchorPeersUpdate ${FABRIC_TARGET}/config/${ORG_NAME^}MSPanchors.tx -channelID ${CHANNEL_NAME} -asOrg ${ORG_NAME^}MSP  
 

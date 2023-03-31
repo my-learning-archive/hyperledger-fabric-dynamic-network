@@ -24,13 +24,13 @@ Prepare base HLF network:
 
 Add new Org:
 
-> **`./add-org.sh <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <ca_7054_port> <ca_admin_username> <ca_admin_password> <channel_name> <org_in_channel>`** \
-> `./add-org.sh org3 15051 15053 15984 15054 Org3Admin Org3AdminPassword allarewelcome org1`
+> **`./create-org.sh <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <ca_7054_port> <ca_admin_username> <ca_admin_password> <channel_name> <org_in_channel>`** \
+> `./create-org.sh org3 15051 15053 15984 15054 Org3Admin Org3AdminPassword allarewelcome org1`
 
 Add new Peer:
 
-> **`./add-peer.sh <peer_name> <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <ca_admin_username> <ca_admin_password>`** \
-> `./add-peer.sh peer1 org3 16051 16053 16984 Org3Admin Org3AdminPassword`
+> **`./create-peer.sh <peer_name> <org_name> <peer_7051_port> <peer_7053_port> <couchdb_5984_port> <ca_admin_username> <ca_admin_password>`** \
+> `./create-peer.sh peer1 org3 16051 16053 16984 Org3Admin Org3AdminPassword`
 
 Create new channel:
 
@@ -60,7 +60,7 @@ It is also interesting to see what happens if a new peer is added after chaincod
 
 Add a peer to **org3**:
 
-> `./add-peer.sh peer2 org3 17051 17053 17984 Org3Admin Org3AdminPassword`
+> `./create-peer.sh peer2 org3 17051 17053 17984 Org3Admin Org3AdminPassword`
 
 Check the couchdb of the newly added **peer2.org3**:
   1. Access it in any browser - `localhost:17984/_utils`
@@ -83,4 +83,4 @@ Test a chaincode invocation, with the participation of **peer2.org3**:
   - ~~**deploy-chaincode.sh:** remove need to specify list of orgs: use discovery service to fetch list of orgs in channel~~
   - ~~**deploy-chaincode.sh:** substitute long sleeps for periodic retries~~
   - ~~**README.md** should be updated to reflect all changes - for now it is only compatible with tag v1.0~~
-  - handle the preliminary verifications and error checking the same way for all scripts
+  - ~~handle the preliminary verifications and error checking the same way for all scripts~~

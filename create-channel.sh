@@ -39,7 +39,7 @@ function assumeRole {
 # INPUT VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES - create-channel.sh\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh: ${C_BLUE}\n > DEFINING INPUT VARIABLES\n\n${C_RESET}"
 
 set -x
 CHANNEL_NAME=$1 
@@ -52,6 +52,11 @@ ORGS_LIST=$({
   done
 })
 
+[[ -z ${CHANNEL_NAME} ]] && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+  exit 1   
+}
+
 
 
 
@@ -59,7 +64,7 @@ ORGS_LIST=$({
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 
@@ -82,30 +87,27 @@ ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 
 ############################################################## 
 # VERIFICATIONS
+#
+# 1. Do the specified orgs exist?
+# 2. Does any of the specified orgs already belong to an 
+#    equally-named application channel?
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFICATION: DO THE PROVIDED ORGS EXIST?\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 for ORG_NAME in ${ORGS_LIST}; do
-
   docker ps | grep -i ${ORG_NAME} &> /dev/null || {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} does not exist!${C_RESET}"
     exit 1
   }
-  
 done
 
-printf "${C_BLUE}\n>>> VERIFICATION: DOES ${CHANNEL_NAME} ALREADY EXIST IN THE PROVIDED ORGS?\n${C_RESET}"
-
 for ORG_NAME in ${ORGS_LIST}; do
-
   assumeRole peer0 ${ORG_NAME}
-
   docker exec ${ENV} ${CLI_CONTAINER} peer channel list | grep ${CHANNEL_NAME} && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} is already a part of ${CHANNEL_NAME}!${C_RESET}"
     exit 1
   }
-
 done
 
 
@@ -115,7 +117,7 @@ done
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}
 
@@ -131,7 +133,7 @@ cd ${TEMP_TARGET}
 # CREATING CONFIG FILES - configtx.yaml
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING configtx.yaml FOR CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > CREATING configtx.yaml\n\n${C_RESET}"
 
 cat << EOF > ${CONFIGTX_TARGET}
 Organizations:
@@ -319,7 +321,7 @@ cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}.yaml
 # GENERATING CHANNEL CREATION TRANSACTION 
 ##############################################################
 
-printf "${C_BLUE}\n>>> GENERATING CHANNEL CREATION TRANSACTION FOR CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > GENERATING APPLICATION CHANNEL CREATION TRANSACTION\n\n${C_RESET}"
 
 configtxgen -configPath ${TEMP_TARGET} -profile OrgChannel -outputCreateChannelTx ${CHANNEL_TX_TARGET} -channelID ${CHANNEL_NAME}
 
@@ -332,7 +334,7 @@ cp ${CHANNEL_TX_TARGET} ${FABRIC_TARGET}/config/${CHANNEL_NAME}.tx
 # CREATING THE APPLICATION CHANNEL 
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING APPLICATION CHANNEL - ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > CREATING APPLICATION CHANNEL\n\n${C_RESET}"
 
 ORG_NAME=$(echo ${ORGS_LIST} | awk '{print $1;}')
 
@@ -358,7 +360,7 @@ for ORG_NAME in ${ORGS_LIST}; do
 
 	for PEER_NAME in ${PEERS_LIST}; do
 
-		printf "${C_BLUE}\n>>> ADDING ${PEER_NAME}.${ORG_NAME} TO ${CHANNEL_NAME}\n${C_RESET}"
+		printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > JOINING ${ORG_NAME}.${PEER_NAME} TO THE APPLICATION CHANNEL\n\n${C_RESET}"
 
     assumeRole ${PEER_NAME} ${ORG_NAME}
 		
@@ -382,6 +384,6 @@ done
 # CLEAN UP
 ##############################################################
 
-printf "${C_BLUE}\n>>> CLEANING UP ${TEMP_TARGET}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-channel.sh:${C_GRAY_ITALIC} ${CHANNEL_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

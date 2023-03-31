@@ -10,7 +10,7 @@ export PATH=~/Desktop/fabric-samples/bin:$PATH
 # INPUT VARIABLES 
 ##############################################################
 
-printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES - add-org.sh\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_BLUE}\n > DEFINING INPUT VARIABLES\n\n${C_RESET}"
 
 set -x
 ORG_NAME=$1 
@@ -24,6 +24,11 @@ CHANNEL_NAME=$8
 CHANNEL_ORG_NAME=$9
 { set +x; } 2>/dev/null
 
+[[ -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${CA_7054_PORT} || -z ${ADMIN_USERNAME} || -z ${ADMIN_PASSWORD} ]] && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+  exit 1   
+}
+
 
 
 
@@ -31,7 +36,7 @@ CHANNEL_ORG_NAME=$9
 # PROCESSING VARIABLES 
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 ORG_URL=${ORG_NAME}.${PROJECT_URL}
@@ -65,9 +70,13 @@ CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
 
 ############################################################## 
 # VERIFICATIONS
+#
+# 1. Does the specified org already exist?
+# 2. If application channel was specified, was a corresponding
+#    org also specified, and does it belong to the channel?
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFICATION: DOES ${ORG_NAME} ALREADY EXIST?\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 docker ps | grep -i ${ORG_NAME} &> /dev/null && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${ORG_NAME} already exists!${C_RESET}"
@@ -76,10 +85,8 @@ docker ps | grep -i ${ORG_NAME} &> /dev/null && {
 
 [[ -z ${CHANNEL_NAME} ]] || {
 
-  printf "${C_BLUE}\n>>> VERIFICATION: WAS A CHANNEL ORG SPECIFIED CORRECTLY?\n${C_RESET}"
-
   [[ -z ${CHANNEL_ORG_NAME} ]] && {
-    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an org that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an organization that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
     exit 1
   }
 
@@ -96,7 +103,7 @@ docker ps | grep -i ${ORG_NAME} &> /dev/null && {
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
 
 echo y | rm -r ${ORG_TEMP_TARGET}
 echo y | rm -r ${ORG_CRYPTO_MATERIAL_TARGET}
@@ -118,7 +125,7 @@ cd ${ORG_TEMP_TARGET}
 # CREATING CONFIG FILES - docker-compose.yaml
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING INITIAL docker-compose.yaml FOR ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CREATING docker-compose.yaml\n\n${C_RESET}"
 
 cat << EOF > ${DOCKER_COMPOSE_TARGET}
 version: '2.2'
@@ -202,7 +209,7 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 # CREATING CONFIG FILES - configtx.yaml
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING INITIAL configtx.yaml FOR ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CREATING configtx.yaml\n\n${C_RESET}"
 
 cat << EOF > ${CONFIGTX_TARGET}
 Organizations:
@@ -237,7 +244,7 @@ cp ${CONFIGTX_TARGET} ${FABRIC_EXPAND_TARGET}/configtx-${CHANNEL_NAME}-${ORG_NAM
 # CREATING CONFIG FILES - fabric-ca-server-config.yaml
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING INITIAL fabric-ca-server-config.yaml FOR ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CREATING fabric-ca-server-config.yaml\n\n${C_RESET}"
 
 cat << EOF > ${CA_SERVER_TARGET}    
 version: 1.2.0
@@ -384,13 +391,11 @@ cp ${CA_SERVER_TARGET} ${ORG_CRYPTO_MATERIAL_TARGET}/ca/fabric-ca-server-config.
 # GENERATING CERTIFICATES
 ##############################################################
 
-printf "${C_BLUE}\n>>> STARTING THE CONTAINER OF THE CA OF ${ORG_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > GENERATING CRYPTO-MATERIALS\n\n${C_RESET}"
 
 docker compose -f ${DOCKER_COMPOSE_TARGET} up -d ca.${ORG_URL}
 
 sleep 10
-
-printf "${C_BLUE}\n>>> GENERATING CRYPTO-MATERIALS FOR ${ORG_NAME}\n${C_RESET}"
 
 cd ${FABRIC_TARGET}
 . create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
@@ -403,10 +408,10 @@ cd ${ORG_TEMP_TARGET}
 
 
 ############################################################## 
-# CREATING ORG JSON DEFINITIONS
+# GENERATING ORG JSON DEFINITIONS
 ##############################################################
 
-printf "${C_BLUE}\n>>> CONFIGURING ${ORG_NAME} JSON DEFINITIONS\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > GENERATING ORGANIZATION DEFINITIONS\n\n${C_RESET}"
 
 configtxgen -configPath ${ORG_TEMP_TARGET} -printOrg ${ORG_NAME^}MSP > ${JSON_DEFINITIONS_TARGET}
 
@@ -419,7 +424,7 @@ cp ${JSON_DEFINITIONS_TARGET} ${FABRIC_TARGET}/config/
 # STARTING CONTAINERS
 ##############################################################
 
-printf "${C_BLUE}\n>>> STARTING ${ORG_NAME} CONTAINERS\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > STARTING SERVICES\n\n${C_RESET}"
 
 docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}Peer0 peer0.${ORG_URL}
 
@@ -430,7 +435,7 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d couchdb${ORG_NAME^}Peer0 peer0.
 # JOINING ORG TO CONSORTIUM
 ##############################################################
 
-printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CONSORTIUM\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO CONSORTIUM\n\n${C_RESET}"
 
 CLI_SCRIPT=join-${ORG_NAME}-to-consortium.sh
 cat << EOF > ./${CLI_SCRIPT}
@@ -486,7 +491,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 [[ -z ${CHANNEL_NAME} ]] || {
 
-printf "${C_BLUE}\n>>> JOINING ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO THE ${CHANNEL_NAME} APPLICATION CHANNEL\n\n${C_RESET}"
 
 CLI_SCRIPT=join-${ORG_NAME}-to-channel.sh
 cat << EOF > ./${CLI_SCRIPT}
@@ -559,7 +564,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 
 [[ -z ${CHANNEL_NAME} ]] || {
 
-printf "${C_BLUE}\n>>> JOINING THE ANCHOR PEER OF ${ORG_NAME} TO CHANNEL ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CONFIGURING THE ANCHOR PEER\n\n${C_RESET}"
 
 CLI_SCRIPT=join-peer0.${ORG_URL}-to-channel.sh
 
@@ -595,7 +600,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 # CONFIGURING DISCOVERY SERVICE IN CLI CONTAINER
 ##############################################################
 
-printf "${C_BLUE}\n>>> CONFIGURING DISCOVERY SERVICE FOR ${ORG_NAME} IN THE CLI CONTAINER\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CONFIGURING THE DISCOVERY SERVICE\n\n${C_RESET}"
 
 PRIV_KEY_FILENAME=$(docker exec ${CLI_CONTAINER} ls ${CLI_INTERNAL_CRYPTO_MATERIAL_DIR}/users/User1@${ORG_URL}/msp/keystore/ | head -n 1)
 
@@ -615,6 +620,6 @@ docker exec ${CLI_CONTAINER} discover \
 # CLEAN UP
 ##############################################################
 
-printf "${C_BLUE}\n>>> CLEANING UP ${ORG_TEMP_TARGET}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${ORG_TEMP_TARGET}

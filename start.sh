@@ -23,7 +23,7 @@ CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/p
 # STARTING BASE CONTAINERS
 ##############################################################
 
-printf "${C_BLUE}\n>>> STARTING BASE CONTAINERS\n${C_RESET}"
+printf "${C_BLUE_BOLD}\nstarting.sh:${C_BLUE}\n > STARTING BASE SERVICES\n\n${C_RESET}"
 
 docker compose -f docker-compose.yml up -d \
 	ca.${PROJECT_URL} \
@@ -47,7 +47,7 @@ sleep 15
 # CREATING THE APPLICATION CHANNEL 
 ##############################################################
 
-printf "${C_BLUE}\n>>> CREATING APPLICATION CHANNEL - ${CHANNEL_NAME}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\nstarting.sh:${C_BLUE}\n > CREATING BASE ${CHANNEL_NAME} APPLICATION CHANNEL\n\n${C_RESET}"
 
 ORDERER_TLS_CA=$(docker exec ${CLI_CONTAINER} printenv ORDERER_TLS_CA)
 ORG_NAME="org1"
@@ -78,7 +78,7 @@ for ORG_NAME in "org1" "org2"; do
 
 	for PEER_NAME in ${PEERS_LIST}; do
 
-		printf "${C_BLUE}\n>>> JOINING ${PEER_NAME}.${ORG_NAME} TO ${CHANNEL_NAME}\n${C_RESET}"
+		printf "${C_BLUE_BOLD}\nstarting.sh:${C_BLUE}\n > JOINING ${PEER_NAME}.${ORG_NAME} TO THE BASE APPLICATION CHANNEL\n\n${C_RESET}"
 
 		docker exec -e CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP \
 			-e CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051 \
@@ -114,7 +114,7 @@ done
 
 for ORG_NAME in "org1" "org2"; do
 
-	printf "${C_BLUE}\n>>> UPDATING ${ORG_NAME} ANCHOR PEER\n${C_RESET}"
+	printf "${C_BLUE_BOLD}\nstarting.sh:${C_BLUE}\n > CONFIGURING THE ANCHOR PEER OF ${ORG_NAME}\n\n${C_RESET}"
 
 	ORG_URL=${ORG_NAME}.${PROJECT_URL}
 
@@ -137,7 +137,7 @@ done
 
 for ORG_NAME in "org1" "org2"; do
 
-	printf "${C_BLUE}\n>>> CONFIGURING DISCOVERY SERVICE FOR ${ORG_NAME} IN THE CLI CONTAINER\n${C_RESET}"
+	printf "${C_BLUE_BOLD}\nstarting.sh:${C_BLUE}\n > CONFIGURING THE DISCOVERY SERVICE OF ${ORG_NAME}\n\n${C_RESET}"
 
 	ORG_URL=${ORG_NAME}.${PROJECT_URL}
 	

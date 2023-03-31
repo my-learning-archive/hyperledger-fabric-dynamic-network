@@ -23,7 +23,7 @@ function assumeRole {
   ORG_URL=${ORG_NAME}.${PROJECT_URL}
   CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG_URL}
 
-  [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\n---> Acting on behalf of ${PEER_NAME}.${ORG_NAME}${C_RESET}"
+  [[ ${SUPRESS_VERBOSE} -eq 1 ]] || echo -e "${C_BLUE}\nActing on behalf of ${PEER_NAME}.${ORG_NAME}${C_RESET}"
 
   _CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
   _CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051
@@ -58,7 +58,7 @@ function assumeRole {
 # INPUT VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> DEFINING INPUT VARIABLES - deploy-chaincode.sh\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_BLUE}\n > DEFINING INPUT VARIABLES\n\n${C_RESET}"
 
 set -x
 CLI_CHAINCODE_DIR=$1
@@ -69,6 +69,11 @@ CHANNEL_NAME=$5
 CHANNEL_ORG_NAME=$6
 { set +x; } 2>/dev/null
 
+[[ -z ${CLI_CHAINCODE_DIR} || -z ${CHAINCODE_LANGUAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} ]] && {
+  >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
+  exit 1   
+}
+
 
 
 
@@ -76,7 +81,7 @@ CHANNEL_ORG_NAME=$6
 # PROCESSING VARIABLES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING VARIABLES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PROCESSING VARIABLES\n\n${C_RESET}"
 
 PROJECT_URL=${COMPOSE_PROJECT_URL} # In the .env file
 
@@ -113,16 +118,18 @@ done
 
 ############################################################## 
 # VERIFICATIONS
+#
+# 1. Does the specified chaincode directory exist?
+# 2. Does the specified channel exist? Was a corresponding
+#    org specified, and does it belong to the channel?
 ##############################################################
 
-printf "${C_BLUE}\n>>> VERIFICATION: IS THE CHAINCODE AVAILABLE INSIDE THE ${CLI_CONTAINER} CONTAINER?\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PERFORMING NECESSARY VERIFICATIONS\n\n${C_RESET}"
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
   exit 1
 }
-
-printf "${C_BLUE}\n>>> VERIFICATION: DOES ${CHANNEL_NAME} EXIST AND DOES ${CHANNEL_ORG_NAME} BELONG TO IT?\n${C_RESET}"
 
 [[ ${PEERS_LIST} == "" ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not get the list of peers in the ${CHANNEL_NAME} channel - check if ${CHANNEL_NAME} exists or if ${CHANNEL_ORG_NAME} belongs to it!${C_RESET}"
@@ -136,7 +143,7 @@ printf "${C_BLUE}\n>>> VERIFICATION: DOES ${CHANNEL_NAME} EXIST AND DOES ${CHANN
 # PROCESSING DIRECTORIES
 ##############################################################
 
-printf "${C_BLUE}\n>>> PROCESSING DIRECTORIES\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PROCESSING DIRECTORIES\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}
 
@@ -151,7 +158,7 @@ cd ${TEMP_TARGET}
 # PACKAGING CHAINCODE
 ##############################################################
 
-printf "${C_BLUE}\n>>> PACKAGING CHAINCODE\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > PACKAGING CHAINCODE\n\n${C_RESET}"
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
@@ -173,7 +180,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 # INSTALLING CHAINCODE
 ##############################################################
 
-printf "${C_BLUE}\n>>> INSTALLING CHAINCODE\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > INSTALLING CHAINCODE\n\n${C_RESET}"
 
 for PEER in ${PEERS_LIST}; do
 
@@ -191,7 +198,7 @@ done
 # APPROVING CHAINCODE
 ##############################################################
 
-printf "${C_BLUE}\n>>> APPROVING CHAINCODE\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > APPROVING CHAINCODE\n\n${C_RESET}"
 
 for PEER in ${REPRESENTATIVE_PEERS_LIST}; do
 
@@ -229,7 +236,7 @@ done
 # COMMITING CHAINCODE
 ##############################################################
 
-printf "${C_BLUE}\n>>> COMMITTING CHAINCODE\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > COMMITTING CHAINCODE\n\n${C_RESET}"
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
@@ -260,13 +267,13 @@ done
 # TESTING CHAINCODE
 ##############################################################
 
-printf "${C_BLUE}\n>>> TESTING CHAINCODE\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > TESTING CHAINCODE\n\n${C_RESET}"
 
 sleep 60
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
-echo -e "${C_BLUE}\n---> Invoking chaincode: writing key1:value1${C_RESET}"
+echo -e "${C_BLUE}\nInvoking chaincode: writing key1:value1${C_RESET}"
 set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode invoke \
@@ -278,7 +285,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     -c '{"function":"set","args":["key1", "value1"]}' --waitForEvent
 { set +x; } 2>/dev/null
 
-echo -e "${C_BLUE}\n---> Querying chaincode: reading value of key1${C_RESET}"
+echo -e "${C_BLUE}\nQuerying chaincode: reading value of key1${C_RESET}"
 set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode query \
@@ -296,6 +303,6 @@ docker exec ${ENV} ${CLI_CONTAINER} \
 # CLEAN UP
 ##############################################################
 
-printf "${C_BLUE}\n>>> CLEANING UP ${TEMP_TARGET}\n${C_RESET}"
+printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > CLEANING UP\n\n${C_RESET}"
 
 echo y | rm -r ${TEMP_TARGET}

@@ -55,7 +55,7 @@ FABRIC_TARGET=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd
 # ENROLLING CA ADMIN 
 ##############################################################
 
-echo -e "${C_BLUE}\nEnrolling CA Admin${C_RESET}"
+echo -e "${C_BLUE}\nEnrolling CA admin${C_RESET}"
 mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/
 
 export FABRIC_CA_CLIENT_HOME=${ORG_CRYPTO_MATERIAL_TARGET}/
@@ -114,17 +114,16 @@ function createUser(){
   USER_USERNAME=$3
   USER_PASSWORD=$4
   
-  echo -e "${C_BLUE}\nRegistering ${USER_USERNAME} - org ${USER_TYPE}${C_RESET}"
-  set -x
+  echo -e "${C_BLUE}\nRegistering: ${USER_NAME}@${ORG_URL}${C_RESET}"
+
   fabric-ca-client register \
     --caname ${CA_NAME} \
     --id.name ${USER_USERNAME} \
     --id.secret ${USER_PASSWORD} \
     --id.type ${USER_TYPE} \
     --tls.certfiles ${CA_TLS_CERTIFICATE}
-  { set +x; } 2>/dev/null
 
-  echo -e "${C_BLUE}\nGenerating ${USER_USERNAME} msp${C_RESET}"
+  echo -e "${C_BLUE}\nGenerating MSP: ${USER_NAME}@${ORG_URL}${C_RESET}"
   set -x
   fabric-ca-client enroll \
     -u https://${USER_USERNAME}:${USER_PASSWORD}@localhost:${CA_7054_PORT} \
@@ -133,15 +132,14 @@ function createUser(){
     --tls.certfiles ${CA_TLS_CERTIFICATE}
   { set +x; } 2>/dev/null
 
-  echo -e "${C_BLUE}\nGenerating ${USER_USERNAME} tls${C_RESET}"
-  set -x
+  echo -e "${C_BLUE}\nGenerating TLS: ${USER_NAME}@${ORG_URL}${C_RESET}"
+
   fabric-ca-client enroll \
     -u https://${USER_USERNAME}:${USER_PASSWORD}@localhost:${CA_7054_PORT} \
     --caname ${CA_NAME} \
     -M ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls \
     --enrollment.profile tls \
     --tls.certfiles ${CA_TLS_CERTIFICATE}
-  { set +x; } 2>/dev/null  
 
   cp ${ORG_MSP}/config.yaml ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/msp/config.yaml
 }
@@ -159,30 +157,28 @@ function createEntity(){
   ENTITY_USERNAME=$2
   ENTITY_PASSWORD=$3
     
-  echo -e "${C_BLUE}\nRegistering ${ENTITY_NAME}${C_RESET}"
-  set -x
+  echo -e "${C_BLUE}\nRegistering: ${ENTITY_NAME}.${ORG_URL}${C_RESET}"
+
   fabric-ca-client register \
     --caname ${CA_NAME} \
     --id.name ${ENTITY_USERNAME} \
     --id.secret ${ENTITY_PASSWORD} \
     --id.type ${ENTITY_TYPE} \
     --tls.certfiles ${CA_TLS_CERTIFICATE}
-  { set +x; } 2>/dev/null
 
-  echo -e "${C_BLUE}\nGenerating ${ENTITY_NAME} msp${C_RESET}"
-  set -x
+  echo -e "${C_BLUE}\nGenerating MSP: ${ENTITY_NAME}.${ORG_URL}${C_RESET}"
+
   fabric-ca-client enroll \
     -u https://${ENTITY_USERNAME}:${ENTITY_PASSWORD}@localhost:${CA_7054_PORT} \
     --caname ${CA_NAME} \
     -M ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/msp \
     --csr.hosts ${ENTITY_NAME}.${ORG_URL} \
     --tls.certfiles ${CA_TLS_CERTIFICATE}
-  { set +x; } 2>/dev/null
 
   cp ${ORG_MSP}/config.yaml ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/msp/config.yaml
 
-  echo -e "${C_BLUE}\nGenerating ${ENTITY_NAME} tls${C_RESET}"
-  set -x
+  echo -e "${C_BLUE}\nGenerating TLS: ${ENTITY_NAME}.${ORG_URL}${C_RESET}"
+
   fabric-ca-client enroll \
     -u https://${ENTITY_USERNAME}:${ENTITY_PASSWORD}@localhost:${CA_7054_PORT} \
     --caname ${CA_NAME} \
@@ -191,7 +187,6 @@ function createEntity(){
     --csr.hosts ${ENTITY_NAME}.${ORG_URL} \
     --csr.hosts localhost \
     --tls.certfiles ${CA_TLS_CERTIFICATE}
-  { set +x; } 2>/dev/null
 
   cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/tlscacerts/* ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/ca.crt
   cp ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/signcerts/* ${ENTITIES_CRYPTO_MATERIAL_TARGET}/${ENTITY_NAME}.${ORG_URL}/tls/server.crt
