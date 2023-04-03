@@ -269,7 +269,7 @@ sleep 60
 
 assumeRole $(echo ${REPRESENTATIVE_PEERS_LIST} | awk '{print $1}')
 
-echo -e "${C_BLUE}\nInvoking chaincode: writing key1 : value-${CHAINCODE-LABEL} ...${C_RESET}"
+echo -e "${C_BLUE}\nInvoking chaincode: writing key1 : value-${CHAINCODE_LABEL} ...${C_RESET}"
 set -x
 docker exec ${ENV} ${CLI_CONTAINER} \
   peer chaincode invoke \
@@ -278,7 +278,7 @@ docker exec ${ENV} ${CLI_CONTAINER} \
     --channelID ${CHANNEL_NAME} \
     --name ${CHAINCODE_LABEL} \
     ${PEER_PARAMETERS} \
-    -c '{"function":"set","args":["key1", "value1"]}' --waitForEvent
+    -c '{"function":"set","args":["key1", "value-'${CHAINCODE_LABEL}'"]}' --waitForEvent
 { set +x; } 2>/dev/null
 
 echo -e "${C_BLUE}\nQuerying chaincode: reading value of key1 ...${C_RESET}"

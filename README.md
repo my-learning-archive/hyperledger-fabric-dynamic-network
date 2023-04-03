@@ -60,13 +60,4 @@ Check the couchdb of any peer, for instance, peer1.org3:
 ---
 **Comments and TODO:**
 
-- Add ability to create new channels:
-  - ~~**create-channel.sh**~~
-  - ~~**add-peer.sh:** recognize channels org is a part of, and remove need to specify application channels~~
-  - ~~**add-peer.sh:** peer should install the chaincodes that are running in the application channels the org belongs to~~
-  - ~~**deploy-chaincode.sh:** remove need to specify list of orgs: use discovery service to fetch list of orgs in channel~~
-  - ~~**deploy-chaincode.sh:** substitute long sleeps for periodic retries~~
-  - ~~**README.md** should be updated to reflect all changes - for now it is only compatible with tag v1.0~~
-  - ~~handle the preliminary verifications and error checking the same way for all scripts~~
-  - Implement script to join existing orgs to existing channels
-  - Migrate some global variables such as $CLI_CONTAINER and $ORDERER_CONTAINER_HOSTNAME_PORT to the .env file
+- Implement script to join existing orgs to existing channels
