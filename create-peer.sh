@@ -18,11 +18,11 @@ ORG_NAME=$2
 PEER_7051_PORT=$3
 PEER_7053_PORT=$4
 COUCHDB_5984_PORT=$5
-ADMIN_USERNAME=$6
-ADMIN_PASSWORD=$7
+ORG_CA_ADMIN_USERNAME=$6
+ORG_CA_ADMIN_PASSWORD=$7
 { set +x; } 2>/dev/null
 
-[[ -z ${PEER_NAME} || -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ADMIN_USERNAME} || -z ${ADMIN_PASSWORD} ]] && {
+[[ -z ${PEER_NAME} || -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
   exit 1   
 }
@@ -53,10 +53,10 @@ CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/p
 TEMP_TARGET=${SCRIPT}/${ORG_NAME}_tmp
 DOCKER_COMPOSE_TARGET=${TEMP_TARGET}/docker-compose-${PEER_NAME}.${ORG_NAME}.yaml
 
-CA_7054_PORT=$(docker inspect ca.${ORG_URL} | grep HostPort | head -n 1 | awk '{print $2}' | tr -d '"')
+ORG_CA_7054_PORT=$(docker inspect ca.${ORG_URL} | grep HostPort | head -n 1 | awk '{print $2}' | tr -d '"')
 
-CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
-CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
+CA_ADMIN_URL=https://${ORG_CA_ADMIN_USERNAME}:${ORG_CA_ADMIN_PASSWORD}@localhost:${ORG_CA_7054_PORT}
+CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${ORG_CA_7054_PORT}
 
 
 
@@ -69,7 +69,7 @@ CA_PEER_URL=https://${PEER_NAME}:${PEER_NAME}pw@localhost:${CA_7054_PORT}
 # 3. Are the provided admin credentials authorized?
 ##############################################################
 
-[[ ${CA_7054_PORT} == '' ]] && {
+[[ ${ORG_CA_7054_PORT} == '' ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} could not obtain the port of the ca of ${ORG_NAME} - check if ${ORG_NAME} exists and if its CA is running!${C_RESET}"
   exit 1
 }
@@ -80,7 +80,7 @@ docker ps | grep -i ${PEER_NAME}.${ORG_NAME} &> /dev/null && {
 }
 
 cd ${FABRIC_TARGET}
-. create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
+. create-crypto.sh ${ORG_NAME} ${ORG_CA_7054_PORT} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD}
 
 
 
@@ -174,7 +174,8 @@ cp ${DOCKER_COMPOSE_TARGET} ${FABRIC_EXPAND_TARGET}/
 
 printf "${C_BLUE_BOLD}\ncreate-peer.sh:${C_GRAY_ITALIC} ${PEER_NAME}.${ORG_NAME} ${C_BLUE}\n > GENERATING CRYPTO-MATERIALS\n\n${C_RESET}"
 
-createEntity ${PEER_NAME} ${PEER_NAME} ${PEER_NAME}pw
+createEntity ${PEER_NAME} ${ORG_NAME}${PEER_NAME} ${ORG_NAME}${PEER_NAME}pw
+createEntityTLS ${PEER_NAME} ${ORG_NAME}${PEER_NAME} ${ORG_NAME}${PEER_NAME}pw
 
 
 

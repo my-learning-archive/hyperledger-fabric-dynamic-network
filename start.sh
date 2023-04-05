@@ -29,6 +29,7 @@ CLI_INTERNAL_CRYPTO_MATERIAL_DIR=/opt/gopath/src/github.com/hyperledger/fabric/p
 printf "${C_BLUE_BOLD}\nstart.sh:${C_BLUE}\n > STARTING BASE SERVICES\n\n${C_RESET}"
 
 docker compose -f docker-compose.yml up -d \
+	tls.ca.${PROJECT_URL} \
 	ca.${PROJECT_URL} \
 	orderer0.${PROJECT_URL} \
 	orderer1.${PROJECT_URL} \

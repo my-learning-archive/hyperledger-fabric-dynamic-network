@@ -17,14 +17,14 @@ ORG_NAME=$1
 PEER_7051_PORT=$2 
 PEER_7053_PORT=$3 
 COUCHDB_5984_PORT=$4 
-CA_7054_PORT=$5 
-ADMIN_USERNAME=$6 
-ADMIN_PASSWORD=$7
+ORG_CA_7054_PORT=$5 
+ORG_CA_ADMIN_USERNAME=$6 
+ORG_CA_ADMIN_PASSWORD=$7
 CHANNEL_NAME=$8
 CHANNEL_ORG_NAME=$9
 { set +x; } 2>/dev/null
 
-[[ -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${CA_7054_PORT} || -z ${ADMIN_USERNAME} || -z ${ADMIN_PASSWORD} ]] && {
+[[ -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ORG_CA_7054_PORT} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
   exit 1   
 }
@@ -60,10 +60,10 @@ CA_SERVER_TARGET=${ORG_TEMP_TARGET}/fabric-ca-server-config-${ORG_NAME}.yaml
 ANCHOR_PEER_TX_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME^}MSPanchors.tx
 JSON_DEFINITIONS_TARGET=${ORG_TEMP_TARGET}/${ORG_NAME}_definition.json
 
-CA_ADMIN_URL=https://${ADMIN_USERNAME}:${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
-ORG_ADMIN_URL=https://${ORG_NAME}${ADMIN_USERNAME}:${ORG_NAME}${ADMIN_PASSWORD}@localhost:${CA_7054_PORT}
-CA_PEER_URL=https://peer0:peer0pw@localhost:${CA_7054_PORT}
-CA_USER_URL=https://user1:user1pw@localhost:${CA_7054_PORT}
+CA_ADMIN_URL=https://${ORG_CA_ADMIN_USERNAME}:${ORG_CA_ADMIN_PASSWORD}@localhost:${ORG_CA_7054_PORT}
+ORG_ADMIN_URL=https://${ORG_NAME}${ORG_CA_ADMIN_USERNAME}:${ORG_NAME}${ORG_CA_ADMIN_PASSWORD}@localhost:${ORG_CA_7054_PORT}
+CA_PEER_URL=https://peer0:peer0pw@localhost:${ORG_CA_7054_PORT}
+CA_USER_URL=https://user1:user1pw@localhost:${ORG_CA_7054_PORT}
 CHANNEL_ORG_URL=${CHANNEL_ORG_NAME}.${PROJECT_URL}
 
 
@@ -141,8 +141,8 @@ services:
       - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/priv_sk
       - FABRIC_CA_SERVER_TLS_ENABLED=true
     ports:
-      - "${CA_7054_PORT}:7054"
-    command: sh -c 'fabric-ca-server start -b ${ADMIN_USERNAME}:${ADMIN_PASSWORD} -d'
+      - "${ORG_CA_7054_PORT}:7054"
+    command: sh -c 'fabric-ca-server start -b ${ORG_CA_ADMIN_USERNAME}:${ORG_CA_ADMIN_PASSWORD} -d'
     volumes:
       - ${ORG_CRYPTO_MATERIAL_TARGET}/ca/:/etc/hyperledger/fabric-ca-server-config
     networks:
@@ -245,7 +245,7 @@ printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n >
 
 cat << EOF > ${CA_SERVER_TARGET}    
 version: 1.2.0
-port: ${CA_7054_PORT}
+port: ${ORG_CA_7054_PORT}
 debug: false
 crlsizelimit: 512000
 
@@ -270,8 +270,8 @@ registry:
   maxenrollments: -1
 
   identities:
-     - name: ${ADMIN_USERNAME}
-       pass: ${ADMIN_PASSWORD}
+     - name: ${ORG_CA_ADMIN_USERNAME}
+       pass: ${ORG_CA_ADMIN_PASSWORD}
        type: client
        affiliation: ""
        attrs:
@@ -395,10 +395,12 @@ docker compose -f ${DOCKER_COMPOSE_TARGET} up -d ca.${ORG_URL}
 sleep 10
 
 cd ${FABRIC_TARGET}
-. create-crypto.sh ${ORG_NAME} ${CA_7054_PORT} ${ADMIN_USERNAME} ${ADMIN_PASSWORD}
+. create-crypto.sh ${ORG_NAME} ${ORG_CA_7054_PORT} ${ORG_CA_ADMIN_USERNAME} ${ORG_CA_ADMIN_PASSWORD}
 createOrg
-createUser "client" "User1" "user1" "user1pw"
-createEntity "peer0" "peer0" "peer0pw"
+createUser "client" "User1" "${ORG_NAME}user1" "${ORG_NAME}user1pw"
+createUserTLS "client" "User1" "${ORG_NAME}user1" "${ORG_NAME}user1pw"
+createEntity "peer0" "${ORG_NAME}peer0" "${ORG_NAME}peer0pw"
+createEntityTLS "peer0" "${ORG_NAME}peer0" "${ORG_NAME}peer0pw"
 cd ${ORG_TEMP_TARGET}
 
 
