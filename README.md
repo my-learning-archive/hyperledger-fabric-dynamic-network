@@ -6,9 +6,26 @@ This was a small project to learn how to add Orgs and Peers to a local Hyperledg
 - Docker 
 - Docker Compose v2
 - fabric-samples (in the `~/Desktop`)
+- yq tool
 
 ---
 **Before start:**
+
+Install basic requirements:
+> `sudo apt-get update` \
+> `sudo apt-get install curl git python-minimal apt-transport-https ca-certificates gnupg-agent software-properties-common` 
+
+Install Docker and Docker Compose v2:
+> `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -` \
+> `sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"` \
+> `sudo apt-get update` \
+> `sudo apt-get -y install docker-ce docker-ce-cli docker-compose-plugin` \
+> `sudo groupadd docker` \
+> `sudo usermod -aG docker $USER && newgrp docker`
+
+Install yq:
+> `sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64` \
+> `sudo chmod a+x /usr/local/bin/yq`
 
 Install the fabric-samples in the `~/Desktop` folder:
 
