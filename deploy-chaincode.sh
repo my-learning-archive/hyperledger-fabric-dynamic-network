@@ -67,9 +67,11 @@ CHAINCODE_LABEL=$3
 CHAINCODE_VERSION=$4 
 CHANNEL_NAME=$5
 CHANNEL_ORG_NAME=$6
+COLLECTIONS_CONFIG=${7:-"NA"}
+SIGNATURE_POLICY=${8:-"NA"}
 { set +x; } 2>/dev/null
 
-[[ -z ${CLI_CHAINCODE_DIR} || -z ${CHAINCODE_LANGUAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} ]] && {
+[[ -z ${CLI_CHAINCODE_DIR} || -z ${CHAINCODE_LANGUAGE} || -z ${CHAINCODE_LABEL} || -z ${CHAINCODE_VERSION} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${CHANNEL_ORG_NAME} || -z ${COLLECTIONS_CONFIG} || -z ${SIGNATURE_POLICY} ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
   exit 1   
 }
@@ -113,6 +115,14 @@ for PEER in ${PEERS_LIST}; do
   PEER_PARAMETERS="${PEER_PARAMETERS} --peerAddresses ${_CORE_PEER_ADDRESS} --tlsRootCertFiles ${_CORE_PEER_TLS_ROOTCERT_FILE}"
 done
 
+[[ ${COLLECTIONS_CONFIG} == "NA" ]] || {
+  COLLECTIONS_CONFIG_FLAG="--collections-config ${CLI_CHAINCODE_DIR}/${COLLECTIONS_CONFIG}"
+}
+
+[[ ${SIGNATURE_POLICY} == "NA" ]] || {
+  SIGNATURE_POLICY_FLAG="--signature-policy ${SIGNATURE_POLICY}"
+}
+
 
 
 
@@ -120,13 +130,22 @@ done
 # PERFORMING VERIFICATIONS
 #
 # 1. Does the specified chaincode directory exist?
-# 2. Does the specified channel exist? Was a corresponding
+# 2. If collections configuration file is specified, does 
+#    it exist?
+# 3. Does the specified channel exist? Was a corresponding
 #    org specified, and does it belong to the channel?
 ##############################################################
 
 docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR} &> /dev/null || {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CLI_CHAINCODE_DIR} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
   exit 1
+}
+
+[[ ${COLLECTIONS_CONFIG} == "NA" ]] || {
+  docker exec ${CLI_CONTAINER} ls ${CLI_CHAINCODE_DIR}/${COLLECTIONS_CONFIG} &> /dev/null || {
+    >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} ${CLI_CHAINCODE_DIR}/${COLLECTIONS_CONFIG} does not exist inside the ${CLI_CONTAINER} container!${C_RESET}"
+    exit 1
+  }
 }
 
 [[ ${PEERS_LIST} == "" ]] && {
@@ -213,7 +232,9 @@ for PEER in ${REPRESENTATIVE_PEERS_LIST}; do
       --name ${CHAINCODE_LABEL} \
       --version ${CHAINCODE_VERSION} \
       --package-id ${PACKAGE_ID} \
-      --sequence ${CHAINCODE_VERSION}
+      --sequence ${CHAINCODE_VERSION} \
+      ${COLLECTIONS_CONFIG_FLAG} \
+      ${SIGNATURE_POLICY_FLAG}
 
   docker exec ${ENV} ${CLI_CONTAINER} \
     peer lifecycle chaincode checkcommitreadiness \
@@ -248,6 +269,8 @@ while true; do
       --name ${CHAINCODE_LABEL} \
       --version ${CHAINCODE_VERSION} \
       --sequence ${CHAINCODE_VERSION} \
+      ${COLLECTIONS_CONFIG_FLAG} \
+      ${SIGNATURE_POLICY_FLAG} \
       ${PEER_PARAMETERS}
 
   if [ $? -eq 0 ]; then
@@ -264,6 +287,7 @@ done
 ##############################################################
 
 printf "${C_BLUE_BOLD}\ndeploy-chaincode.sh:${C_GRAY_ITALIC} ${CHAINCODE_LABEL}:${CHAINCODE_VERSION} ${C_BLUE}\n > TESTING CHAINCODE\n\n${C_RESET}"
+printf "${C_BLUE}(These tests will only work for the 'sacc' chaincode - available in the fabric-samples - as that was the chaincode used for the testing of this script. If you are deploying other chaincodes, copy the commands that will appear shortly in the terminal, and change the function names and arguments accordingly.)\n\n${C_RESET}"
 
 sleep 60
 

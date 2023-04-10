@@ -20,11 +20,11 @@ COUCHDB_5984_PORT=$4
 ORG_CA_7054_PORT=$5 
 ORG_CA_ADMIN_USERNAME=$6 
 ORG_CA_ADMIN_PASSWORD=$7
-CHANNEL_NAME=$8
-CHANNEL_ORG_NAME=$9
+CHANNEL_NAME=${8:-"NA"}
+CHANNEL_ORG_NAME=${9:-"NA"}
 { set +x; } 2>/dev/null
 
-[[ -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ORG_CA_7054_PORT} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} ]] && {
+[[ -z ${ORG_NAME} || -z ${PEER_7051_PORT} || -z ${PEER_7053_PORT} || -z ${COUCHDB_5984_PORT} || -z ${ORG_CA_7054_PORT} || -z ${ORG_CA_ADMIN_USERNAME} || -z ${ORG_CA_ADMIN_PASSWORD} || -z ${CHANNEL_NAME} || -z ${CHANNEL_ORG_NAME} ]] && {
   >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} one or more mandatory arguments have not been provided!${C_RESET}"
   exit 1   
 }
@@ -82,9 +82,8 @@ docker ps | grep -i ${ORG_NAME} &> /dev/null && {
   exit 1
 }
 
-[[ -z ${CHANNEL_NAME} ]] || {
-
-  [[ -z ${CHANNEL_ORG_NAME} ]] && {
+[[ ${CHANNEL_NAME} == "NA" ]] || {
+  [[ ${CHANNEL_ORG_NAME} == "NA" ]] && {
     >&2 echo -e "${C_RED_BOLD}ERROR:${C_RED} you did not provide an organization that is part of the ${CHANNEL_NAME} channel!${C_RESET}"
     exit 1
   }
@@ -488,7 +487,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 # JOINING ORGANIZATION TO APPLICATION CHANNEL
 ##############################################################
 
-[[ -z ${CHANNEL_NAME} ]] || {
+[[ ${CHANNEL_NAME} == "NA" ]] || {
 
 printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ORGANIZATION TO APPLICATION CHANNEL\n\n${C_RESET}"
 
@@ -561,7 +560,7 @@ docker exec ${CLI_CONTAINER} /tmp/${CLI_SCRIPT}
 # JOINING ANCHOR PEER TO APPLICATION CHANNEL
 ##############################################################
 
-[[ -z ${CHANNEL_NAME} ]] || {
+[[ ${CHANNEL_NAME} == "NA" ]] || {
 
 printf "${C_BLUE_BOLD}\ncreate-org.sh:${C_GRAY_ITALIC} ${ORG_NAME} ${C_BLUE}\n > JOINING ANCHOR PEER TO APPLICATION CHANNEL\n\n${C_RESET}"
 
