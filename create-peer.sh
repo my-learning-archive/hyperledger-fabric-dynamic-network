@@ -130,6 +130,7 @@ services:
       - CORE_PEER_TLS_CLIENTCERT_FILE=/etc/hyperledger/fabric/tls/server.crt
       - CORE_PEER_TLS_CLIENTKEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_LOCALMSPID=${ORG_NAME^}MSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp/
       - CORE_PEER_ADDRESS=${PEER_NAME}.${ORG_URL}:7051
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=\${COMPOSE_PROJECT_NAME}_basic
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB

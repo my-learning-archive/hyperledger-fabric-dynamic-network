@@ -3,5 +3,9 @@ config/
 crypto-config/
 *_tmp/
 .vscode/
+apis/*
+chaincodes/*
 
+!apis/PLACE_YOUR_APIs_HERE
+!chaincodes/PLACE_YOUR_CHAINCODES_HERE
 #!config/genesis.block

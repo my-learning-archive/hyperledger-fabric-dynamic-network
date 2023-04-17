@@ -146,6 +146,11 @@ function createUser(){
   USER_NAME=$2
   USER_USERNAME=$3
   USER_PASSWORD=$4
+  USER_ROLE=${5:-"NA"}
+
+  [[ ${USER_ROLE} == "NA" ]] || {
+    USER_ROLE_FLAG="--id.attrs role=${USER_ROLE}:ecert"
+  }
   
   echo -e "${C_BLUE}\nRegistering to organizational CA: ${USER_NAME}@${ORG_URL} ...${C_RESET}"
 
@@ -153,7 +158,7 @@ function createUser(){
     --caname ${CA_NAME} \
     --id.name ${USER_USERNAME} \
     --id.secret ${USER_PASSWORD} \
-    --id.type ${USER_TYPE} \
+    --id.type ${USER_TYPE} ${USER_ROLE_FLAG} \
     --tls.certfiles ${ORG_CA_TLS_CERTIFICATE}
 
   echo -e "${C_BLUE}\nGenerating MSP: ${USER_NAME}@${ORG_URL} ...${C_RESET}"
@@ -182,6 +187,11 @@ function createUserTLS(){
   USER_NAME=$2
   USER_USERNAME=$3
   USER_PASSWORD=$4
+  USER_ROLE=${5:-"NA"}
+
+  [[ ${USER_ROLE} == "NA" ]] || {
+    USER_ROLE_FLAG="--id.attrs role=${USER_ROLE}:ecert"
+  }
 
   echo -e "${C_BLUE}\nRegistering to TLS CA: ${USER_NAME}@${ORG_URL} ...${C_RESET}"
 
@@ -189,7 +199,7 @@ function createUserTLS(){
     --caname ${CA_NAME} \
     --id.name ${USER_USERNAME} \
     --id.secret ${USER_PASSWORD} \
-    --id.type ${USER_TYPE} \
+    --id.type ${USER_TYPE} ${USER_ROLE_FLAG} \
     --tls.certfiles ${TLS_CA_TLS_CERTIFICATE}
 
   echo -e "${C_BLUE}\nGenerating TLS: ${USER_NAME}@${ORG_URL} ...${C_RESET}"
@@ -200,6 +210,16 @@ function createUserTLS(){
     -M ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls \
     --enrollment.profile tls \
     --tls.certfiles ${TLS_CA_TLS_CERTIFICATE}
+
+  cp ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/tlscacerts/* ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/ca.crt
+  cp ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/signcerts/* ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/client.crt
+  cp ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/keystore/* ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/client.key
+
+  mkdir -p ${ORG_MSP}/tlscacerts
+  cp ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/tlscacerts/* ${ORG_MSP}/tlscacerts/ca.crt
+
+  mkdir -p ${ORG_CRYPTO_MATERIAL_TARGET}/tlsca
+  cp ${USERS_CRYPTO_MATERIAL_TARGET}/${USER_NAME}@${ORG_URL}/tls/tlscacerts/* ${TLS_CA_TLS_CERTIFICATE}
 }
 
 
